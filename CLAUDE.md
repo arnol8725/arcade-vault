@@ -21,6 +21,9 @@ No test runner is configured yet.
 
 The README specifies this project follows Spec-Driven Design via `/spec` and `/spec-impl`, based on https://github.com/Klerith/fernando-skills, installed with `npx skills@latest add Klerith/fernando-skills`. Those skills are not currently installed in `.claude/skills` — if `/spec` or `/spec-impl` are invoked and missing, install them first.
 
+## Skills
+Usa siempre /frontend-design para diseñar la interfaz de usuario.
+
 ## Architecture notes
 
 - App Router (`app/`), `@/*` path alias resolves to the repo root (see `tsconfig.json`).
