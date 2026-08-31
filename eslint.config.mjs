@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Design reference sources: plain scripts (window.X globals), not part
+    // of the app's module graph.
+    "references/**",
   ]),
 ]);
 
