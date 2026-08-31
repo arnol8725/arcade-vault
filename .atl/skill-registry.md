@@ -6,6 +6,8 @@ Last updated: 2026-08-30
 
 ## Sources scanned
 
+- .claude/skills
+- .agents/skills
 - /Users/arnolperalta/.agents/skills
 - /Users/arnolperalta/.config/opencode/skills
 - /Users/arnolperalta/.claude/skills
@@ -30,13 +32,15 @@ Last updated: 2026-08-30
 | `cognitive-doc-design` | Design docs that reduce cognitive load. Trigger: writing guides, READMEs, RFCs, onboarding, architecture, or review-facing docs. | user | `/Users/arnolperalta/.config/opencode/skills/cognitive-doc-design/SKILL.md` |
 | `comment-writer` | Write warm, direct collaboration comments. Trigger: PR feedback, issue replies, reviews, Slack messages, or GitHub comments. | user | `/Users/arnolperalta/.config/opencode/skills/comment-writer/SKILL.md` |
 | `find-skills` | Helps users discover and install agent skills when they ask questions like "how do I do X", "find a skill for X", "is there a skill that can...", or express interest in extending capabilities. This skill should be used when the user is looking for functionality that might exist as an installable skill. | user | `/Users/arnolperalta/.agents/skills/find-skills/SKILL.md` |
+| `frontend-design` | Guidance for distinctive, intentional visual design when building new UI or reshaping an existing one. Helps with aesthetic direction, typography, and making choices that don't read as templated defaults. | user | `/Users/arnolperalta/.agents/skills/frontend-design/SKILL.md` |
 | `go-testing` | Trigger: Go tests, go test coverage, Bubbletea teatest, golden files. Apply focused Go testing patterns. | user | `/Users/arnolperalta/.config/opencode/skills/go-testing/SKILL.md` |
 | `issue-creation` | Create Gentle AI issues with issue-first checks. Trigger: creating GitHub issues, bug reports, or feature requests. | user | `/Users/arnolperalta/.config/opencode/skills/issue-creation/SKILL.md` |
 | `judgment-day` | Trigger: judgment day, dual review, adversarial review, juzgar. Run blind dual review, fix confirmed issues, then re-judge. | user | `/Users/arnolperalta/.config/opencode/skills/judgment-day/SKILL.md` |
 | `skill-creator` | Trigger: new skills, agent instructions, documenting AI usage patterns. Create LLM-first skills with valid frontmatter. | user | `/Users/arnolperalta/.config/opencode/skills/skill-creator/SKILL.md` |
 | `skill-improver` | Trigger: improve skills, audit skills, refactor skills, skill quality. Audit and upgrade existing LLM-first skills. | user | `/Users/arnolperalta/.config/opencode/skills/skill-improver/SKILL.md` |
-| `spec` | Designs and develops specs following the spec-driven method. Asks clarifying questions before proposing structure, and builds the spec section by section. Use it when starting a large feature, before writing code. | user | `/Users/arnolperalta/.agents/skills/spec/SKILL.md` |
-| `spec-impl` | Implements an approved spec. Validates that the state means "Approved" (in any language), creates a git branch named after the spec, switches to it, and starts the implementation step by step with pauses to review diffs. | user | `/Users/arnolperalta/.agents/skills/spec-impl/SKILL.md` |
+| `spec` | Designs and develops specs following the spec-driven method. Asks clarifying questions before proposing structure, and builds the spec section by section. Use it when starting a large feature, before writing code. | project | `/Users/arnolperalta/Documents/Cursos_2026/cursos_2026/Claude/Course_Claude/05-arcade-vault/.agents/skills/spec/SKILL.md` |
+| `spec-impl` | Implements an approved spec. Validates that the state means "Approved" (in any language), creates a git branch named after the spec, switches to it, and starts the implementation step by step with pauses to review diffs. | project | `/Users/arnolperalta/Documents/Cursos_2026/cursos_2026/Claude/Course_Claude/05-arcade-vault/.agents/skills/spec-impl/SKILL.md` |
+| `ui-ux-pro-max` | UI/UX design intelligence for web, mobile, and desktop. This skill should be used when designing, building, reviewing, or fixing interfaces, including pages, components, design systems, accessibility, interaction, responsive layout, typography, color, charts, and stack-specific UI implementation. Searchable local data: 79 searchable styles (50 active), 192 product palettes and reasoning profiles, 74 font pairings, 119 UX guidelines, 105 icons, 17 GSAP presets, 25 chart types, and 22 stacks. | user | `/Users/arnolperalta/.agents/skills/ui-ux-pro-max/SKILL.md` |
 | `work-unit-commits` | Plan commits as reviewable work units. Trigger: implementation, commit splitting, chained PRs, or keeping tests and docs with code. | user | `/Users/arnolperalta/.config/opencode/skills/work-unit-commits/SKILL.md` |
 
 ## Loading protocol
