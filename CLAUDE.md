@@ -24,6 +24,10 @@ The README specifies this project follows Spec-Driven Design via `/spec` and `/s
 ## Skills
 Usa siempre /frontend-design para diseñar la interfaz de usuario.
 
+## Playwright
+
+Save every Playwright screenshot to `.playwright-screenshots/` (gitignored) — pass that path in `filename` when calling `browser_take_screenshot`.
+
 ## Architecture notes
 
 - App Router (`app/`), `@/*` path alias resolves to the repo root (see `tsconfig.json`).
