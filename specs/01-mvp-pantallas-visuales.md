@@ -1,6 +1,6 @@
 # SPEC 01 — MVP visual de Arcade Vault: pantallas base
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** Ninguno
 > **Date:** 2026-08-30
 > **Objective:** Implementar como rutas reales de Next.js App Router las cinco pantallas de `references/templates/` (biblioteca, detalle, reproductor, auth y salón de la fama), consumiendo datos mock estáticos y el sistema de diseño ya existente en `app/globals.css`, sin motor de juego real.
@@ -96,22 +96,22 @@ El guardado de puntaje no introduce un módulo propio: la página `/juego/[id]/j
 
 ## Criterios de aceptación
 
-- [ ] `npm run build` termina sin errores de TypeScript ni de ESLint.
-- [ ] `/` renderiza el hero, el buscador, los chips de categoría y las 8 tarjetas de `GAMES`.
-- [ ] Buscar por texto o filtrar por categoría en `/` reduce la grilla a las coincidencias, y muestra "NO HAY RESULTADOS" cuando no hay ninguna.
-- [ ] `/juego/[id]` con un id válido de `GAMES` muestra la info del juego y un leaderboard de 10 filas.
-- [ ] `/juego/id-inexistente` devuelve 404 vía `notFound()`.
-- [ ] `/juego/[id]/jugar` incrementa el puntaje automáticamente cada ~220ms mientras no está en pausa ni terminó la partida.
-- [ ] Pulsar "PAUSA" detiene el incremento de puntaje; pulsar "REANUDAR" lo retoma.
-- [ ] Pulsar "FIN" abre el modal de fin de partida con el puntaje final.
-- [ ] Guardar el puntaje en el modal lo persiste en `localStorage["av_scores"]` y muestra el toast "PUNTUACIÓN GUARDADA_".
-- [ ] En `/auth`, "Iniciar sesión" o "Jugar como invitado" actualiza la sesión y redirige a `/`.
-- [ ] Tras iniciar sesión, el Nav muestra el nombre del usuario en vez de "Iniciar Sesión".
-- [ ] Cerrar sesión desde el Nav borra `localStorage["av_user"]` y vuelve a mostrar "Iniciar Sesión".
-- [ ] `/salon` muestra podio (top 3) y tabla de 12 filas para el juego elegido en las tabs, y cambia al seleccionar otra tab.
-- [ ] Con sesión iniciada, `/salon` agrega la fila "TU MEJOR MARCA EN [JUEGO]".
-- [ ] El link activo del Nav coincide con la ruta actual en las 5 pantallas.
-- [ ] El menú hamburguesa se abre y se cierra correctamente en viewport móvil.
+- [x] `npm run build` termina sin errores de TypeScript ni de ESLint.
+- [x] `/` renderiza el hero, el buscador, los chips de categoría y las 8 tarjetas de `GAMES`.
+- [x] Buscar por texto o filtrar por categoría en `/` reduce la grilla a las coincidencias, y muestra "NO HAY RESULTADOS" cuando no hay ninguna.
+- [x] `/juego/[id]` con un id válido de `GAMES` muestra la info del juego y un leaderboard de 10 filas.
+- [x] `/juego/id-inexistente` devuelve 404 vía `notFound()`.
+- [x] `/juego/[id]/jugar` incrementa el puntaje automáticamente cada ~220ms mientras no está en pausa ni terminó la partida.
+- [x] Pulsar "PAUSA" detiene el incremento de puntaje; pulsar "REANUDAR" lo retoma.
+- [x] Pulsar "FIN" abre el modal de fin de partida con el puntaje final.
+- [x] Guardar el puntaje en el modal lo persiste en `localStorage["av_scores"]` y muestra el toast "PUNTUACIÓN GUARDADA_".
+- [x] En `/auth`, "Iniciar sesión" o "Jugar como invitado" actualiza la sesión y redirige a `/`.
+- [x] Tras iniciar sesión, el Nav muestra el nombre del usuario en vez de "Iniciar Sesión".
+- [x] Cerrar sesión desde el Nav borra `localStorage["av_user"]` y vuelve a mostrar "Iniciar Sesión".
+- [x] `/salon` muestra podio (top 3) y tabla de 12 filas para el juego elegido en las tabs, y cambia al seleccionar otra tab.
+- [x] Con sesión iniciada, `/salon` agrega la fila "TU MEJOR MARCA EN [JUEGO]".
+- [x] El link activo del Nav coincide con la ruta actual en las 5 pantallas.
+- [x] El menú hamburguesa se abre y se cierra correctamente en viewport móvil.
 
 ---
 
