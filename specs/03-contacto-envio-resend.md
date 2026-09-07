@@ -1,6 +1,6 @@
 # SPEC 03 — Envío real de correo en el formulario de contacto (Resend)
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** SPEC 02
 > **Date:** 2026-09-05
 > **Objective:** Conectar el formulario de contacto ya existente en `/acerca-de` (`components/about-contact-form.tsx`) a Resend mediante una Server Action, para que el envío dispare un correo real en vez de la simulación 100% visual definida en SPEC 02.
