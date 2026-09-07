@@ -2,35 +2,46 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AsteroidsCanvas } from "@/components/games/asteroids-canvas";
 import type { Game } from "@/lib/games";
 import { useUser } from "@/lib/user-context";
 
 export function GamePlayer({ game }: { game: Game }) {
   const { user } = useUser();
+  const isAsteroids = game.id === "rocas";
   const [score, setScore] = useState(0);
-  const [lives] = useState(3);
+  const [lives, setLives] = useState(3);
+  const [asteroidsLevel, setAsteroidsLevel] = useState(1);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const [name, setName] = useState(user ? user.name : "INVITADO");
   const [saved, setSaved] = useState(false);
+  const [resetKey, setResetKey] = useState(0);
 
-  // Derived from score instead of tracked via its own effect: the template's
-  // level increments once per 2500-point threshold crossed, which is exactly
-  // what this formula computes on every render — no extra state needed.
-  const level = Math.floor(score / 2500) + 1;
+  // "rocas" gets real level/lives from the Asteroids engine's callbacks. Every
+  // other game keeps the simulated derivation: level increments once per
+  // 2500-point threshold crossed by the fake score, computed on every render
+  // — no extra state needed for those.
+  const level = isAsteroids ? asteroidsLevel : Math.floor(score / 2500) + 1;
 
   useEffect(() => {
-    if (over || paused) return;
-    const t = setInterval(() => setScore((s) => s + Math.floor(10 + Math.random() * 90)), 220);
+    if (isAsteroids || over || paused) return;
+    const t = setInterval(
+      () => setScore((s) => s + Math.floor(10 + Math.random() * 90)),
+      220,
+    );
     return () => clearInterval(t);
-  }, [over, paused]);
+  }, [isAsteroids, over, paused]);
 
   const endGame = () => setOver(true);
   const restart = () => {
     setScore(0);
+    setLives(3);
+    setAsteroidsLevel(1);
     setPaused(false);
     setOver(false);
     setSaved(false);
+    setResetKey((k) => k + 1);
   };
 
   const saveScore = () => {
@@ -80,20 +91,42 @@ export function GamePlayer({ game }: { game: Game }) {
 
       <div className="crt">
         <div className="crt-screen">
-          <div className="game-arena">
-            <div className="grid-floor"></div>
-            <div className="enemy e1"></div>
-            <div className="enemy e2"></div>
-            <div className="enemy e3"></div>
-            <div className="player-ship"></div>
-          </div>
+          {isAsteroids ? (
+            <AsteroidsCanvas
+              key={resetKey}
+              paused={paused}
+              onScoreChange={setScore}
+              onLivesChange={setLives}
+              onLevelChange={setAsteroidsLevel}
+              onGameOver={endGame}
+            />
+          ) : (
+            <div className="game-arena">
+              <div className="grid-floor"></div>
+              <div className="enemy e1"></div>
+              <div className="enemy e2"></div>
+              <div className="enemy e3"></div>
+              <div className="player-ship"></div>
+            </div>
+          )}
           {paused && (
-            <div className="crt-content" style={{ background: "rgba(0,0,0,0.6)", zIndex: 5 }}>
+            <div
+              className="crt-content"
+              style={{ background: "rgba(0,0,0,0.6)", zIndex: 5 }}
+            >
               <div>
                 <div className="pixel neon-yellow" style={{ fontSize: 22 }}>
                   EN PAUSA
                 </div>
-                <div className="mono" style={{ fontSize: 11, color: "var(--ink-dim)", marginTop: 10, letterSpacing: "0.16em" }}>
+                <div
+                  className="mono"
+                  style={{
+                    fontSize: 11,
+                    color: "var(--ink-dim)",
+                    marginTop: 10,
+                    letterSpacing: "0.16em",
+                  }}
+                >
                   PULSA REANUDAR PARA CONTINUAR
                 </div>
               </div>
@@ -102,9 +135,7 @@ export function GamePlayer({ game }: { game: Game }) {
         </div>
         <div className="crt-bottom">
           <span className="led">SEÑAL OK</span>
-          <span>
-            {game.title} · CRT-83 · 60 HZ
-          </span>
+          <span>{game.title} · CRT-83 · 60 HZ</span>
           <span>CARGA · 1MB</span>
         </div>
       </div>
@@ -119,7 +150,9 @@ export function GamePlayer({ game }: { game: Game }) {
               <div className="input-row">
                 <input
                   value={name}
-                  onChange={(e) => setName(e.target.value.toUpperCase().slice(0, 10))}
+                  onChange={(e) =>
+                    setName(e.target.value.toUpperCase().slice(0, 10))
+                  }
                   placeholder="TUS INICIALES"
                 />
                 <button className="btn yellow" onClick={saveScore}>
