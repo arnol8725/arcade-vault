@@ -1,6 +1,6 @@
 # SPEC 06 — Catálogo de juegos en Supabase
 
-> **Status:** Aprobado
+> **Status:** Implemantado
 > **Depends on:** SPEC 04
 > **Date:** 2026-09-06
 > **Objective:** Reemplazar el array estático `GAMES` de `lib/games.ts` por una tabla `games` real en Supabase, de solo lectura desde la app, para poder editar el catálogo sin tocar código ni redeployar.
