@@ -675,6 +675,59 @@ a {
   text-shadow: 0 0 6px rgba(245, 255, 0, 0.6);
 }
 
+/* ===== Skeleton loading state ===== */
+@keyframes skeleton-pulse {
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+.skeleton-block {
+  background: var(--bg-3);
+  border: 1px solid var(--line-2);
+  animation: skeleton-pulse 1.4s ease-in-out infinite;
+}
+.card.skeleton {
+  cursor: default;
+}
+.card.skeleton .cover {
+  background: var(--bg-3);
+}
+.card.skeleton .title {
+  width: 70%;
+  height: 13px;
+}
+.card.skeleton .desc {
+  width: 100%;
+  height: 36px;
+}
+.card.skeleton .score-badge-line {
+  width: 90px;
+  height: 12px;
+}
+.card.skeleton .btn-line {
+  width: 64px;
+  height: 26px;
+}
+.mini-card.skeleton {
+  cursor: default;
+}
+.mini-card.skeleton .mini-cover {
+  background: var(--bg-3);
+}
+.mini-card.skeleton .mini-title {
+  width: 60%;
+  height: 10px;
+  margin-bottom: 6px;
+}
+.mini-card.skeleton .mini-cat {
+  width: 40%;
+  height: 10px;
+}
+
 /* ===== Cover art generators (pure CSS) ===== */
 .cover-bg {
   position: absolute;

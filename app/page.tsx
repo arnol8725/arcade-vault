@@ -1,34 +1,34 @@
-"use client";
-
-import { useEffect } from "react";
 import Link from "next/link";
-import { GAMES } from "@/lib/games";
-import { FloatingSilhouettes, FeatureIcon, MiniCard } from "@/components/home-sections";
-
-function useReveal() {
-  useEffect(() => {
-    const els = document.querySelectorAll(".reveal");
-    const io = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("in");
-            io.unobserve(e.target);
-          }
-        });
-      },
-      { threshold: 0.12 }
-    );
-    els.forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
-}
+import { getGames } from "@/lib/games-server";
+import { FloatingSilhouettes, FeatureIcon } from "@/components/home-sections";
+import { HomeGamesPreview } from "@/components/home-games-preview";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 const FEATURES = [
-  { i: "GAMEPAD" as const, t: "JUEGOS CLÁSICOS", d: "Arkanoid, Tetris, Snake y muchos más. Los mejores arcades de todos los tiempos en un solo lugar.", c: "cyan" },
-  { i: "FREE" as const, t: "100% GRATIS", d: "Sin suscripciones, sin pagos ocultos. Todos los juegos disponibles de forma gratuita.", c: "yellow" },
-  { i: "TROPHY" as const, t: "LADDER BOARDS", d: "Compite con jugadores de todo el mundo. Escala el ranking y demuestra quién es el mejor.", c: "magenta" },
-  { i: "ROCKET" as const, t: "SIEMPRE CRECIENDO", d: "Agregamos nuevos juegos constantemente. Vuelve seguido, siempre habrá algo nuevo que jugar.", c: "green" },
+  {
+    i: "GAMEPAD" as const,
+    t: "JUEGOS CLÁSICOS",
+    d: "Arkanoid, Tetris, Snake y muchos más. Los mejores arcades de todos los tiempos en un solo lugar.",
+    c: "cyan",
+  },
+  {
+    i: "FREE" as const,
+    t: "100% GRATIS",
+    d: "Sin suscripciones, sin pagos ocultos. Todos los juegos disponibles de forma gratuita.",
+    c: "yellow",
+  },
+  {
+    i: "TROPHY" as const,
+    t: "LADDER BOARDS",
+    d: "Compite con jugadores de todo el mundo. Escala el ranking y demuestra quién es el mejor.",
+    c: "magenta",
+  },
+  {
+    i: "ROCKET" as const,
+    t: "SIEMPRE CRECIENDO",
+    d: "Agregamos nuevos juegos constantemente. Vuelve seguido, siempre habrá algo nuevo que jugar.",
+    c: "green",
+  },
 ];
 
 const STATS = [
@@ -55,11 +55,12 @@ const TOP_PLAYERS = [
   { r: 5, p: "GLITCHA", s: 138900 },
 ];
 
-export default function Home() {
-  useReveal();
+export default async function Home() {
+  const games = await getGames();
 
   return (
     <div className="home fade-in">
+      <ScrollReveal />
       {/* HERO */}
       <section className="home-hero">
         <FloatingSilhouettes />
@@ -101,7 +102,11 @@ export default function Home() {
         </div>
         <div className="feature-grid">
           {FEATURES.map((f, i) => (
-            <div key={i} className={"feature-card " + f.c} style={{ transitionDelay: i * 80 + "ms" }}>
+            <div
+              key={i}
+              className={"feature-card " + f.c}
+              style={{ transitionDelay: i * 80 + "ms" }}
+            >
               <FeatureIcon kind={f.i} />
               <div className="ft-title pixel">{f.t}</div>
               <div className="ft-desc">{f.d}</div>
@@ -111,29 +116,17 @@ export default function Home() {
       </section>
 
       {/* GAMES PREVIEW */}
-      <section className="home-section reveal">
-        <div className="section-head">
-          <div className="kicker pixel neon-cyan">{"// 02"}</div>
-          <h2 className="section-title">JUEGOS DISPONIBLES AHORA</h2>
-          <div className="section-rule"></div>
-        </div>
-        <div className="mini-rail">
-          {GAMES.slice(0, 6).map((g) => (
-            <MiniCard key={g.id} game={g} />
-          ))}
-        </div>
-        <div style={{ textAlign: "center", marginTop: 24 }}>
-          <Link href="/biblioteca" className="btn lg">
-            VER TODOS LOS JUEGOS →
-          </Link>
-        </div>
-      </section>
+      <HomeGamesPreview games={games} />
 
       {/* STATS */}
       <section className="home-stats reveal">
         <div className="stats-inner">
           {STATS.map((st, i) => (
-            <div key={i} className="stat-block" style={{ transitionDelay: i * 90 + "ms" }}>
+            <div
+              key={i}
+              className="stat-block"
+              style={{ transitionDelay: i * 90 + "ms" }}
+            >
               <div className="stat-n neon-yellow">{st.n}</div>
               <div className="stat-u pixel">{st.u}</div>
               <div className="stat-s">{st.s}</div>
@@ -156,7 +149,11 @@ export default function Home() {
             </div>
             <div className="ticker">
               {TICKER.map((r, i) => (
-                <div key={i} className="tick-row" style={{ animationDelay: i * 60 + "ms" }}>
+                <div
+                  key={i}
+                  className="tick-row"
+                  style={{ animationDelay: i * 60 + "ms" }}
+                >
                   <span className={"tk-p neon-" + r.c}>{r.p}</span>
                   <span className="tk-mid">▸ {r.g}</span>
                   <span className="tk-s">+{r.s.toLocaleString("es-ES")}</span>
@@ -168,17 +165,34 @@ export default function Home() {
 
           <div className="activity-card">
             <div className="ac-head">
-              <div className="ac-title pixel neon-magenta">▸ TOP JUGADORES · HOY</div>
+              <div className="ac-title pixel neon-magenta">
+                ▸ TOP JUGADORES · HOY
+              </div>
               <Link href="/salon" className="lb-link">
                 VER SALÓN →
               </Link>
             </div>
             <div className="top-list">
               {TOP_PLAYERS.map((r, i) => (
-                <div key={i} className={"top-row" + (i === 0 ? " top1" : i === 1 ? " top2" : i === 2 ? " top3" : "")}>
+                <div
+                  key={i}
+                  className={
+                    "top-row" +
+                    (i === 0
+                      ? " top1"
+                      : i === 1
+                        ? " top2"
+                        : i === 2
+                          ? " top3"
+                          : "")
+                  }
+                >
                   <span className="tp-rk">#{String(r.r).padStart(2, "0")}</span>
                   <span className="tp-bar">
-                    <span className="tp-fill" style={{ width: 100 - i * 16 + "%" }}></span>
+                    <span
+                      className="tp-fill"
+                      style={{ width: 100 - i * 16 + "%" }}
+                    ></span>
                   </span>
                   <span className="tp-p">{r.p}</span>
                   <span className="tp-s">{r.s.toLocaleString("es-ES")}</span>
@@ -213,7 +227,11 @@ export default function Home() {
               <li>✔ Nuevos juegos cada mes</li>
               <li>✔ Funciona en cualquier navegador</li>
             </ul>
-            <Link href="/auth" className="btn xl pulse" style={{ width: "100%" }}>
+            <Link
+              href="/auth"
+              className="btn xl pulse"
+              style={{ width: "100%" }}
+            >
               EMPEZAR GRATIS →
             </Link>
             <div className="pc-foot">No pedimos tarjeta. Nunca lo haremos.</div>
@@ -228,21 +246,23 @@ export default function Home() {
             <div className="faq-item">
               <div className="faq-q pixel">¿REALMENTE ES GRATIS?</div>
               <div className="faq-a">
-                Sí. Arcade Vault es un proyecto sin fines de lucro hecho por amor a los clásicos. No hay versión
-                &quot;premium&quot; escondida.
+                Sí. Arcade Vault es un proyecto sin fines de lucro hecho por
+                amor a los clásicos. No hay versión &quot;premium&quot;
+                escondida.
               </div>
             </div>
             <div className="faq-item">
               <div className="faq-q pixel">¿NECESITO CREAR CUENTA?</div>
               <div className="faq-a">
-                No. Puedes jugar como invitado. Si quieres guardar tu puntuación y aparecer en el ranking, regístrate
-                en 10 segundos.
+                No. Puedes jugar como invitado. Si quieres guardar tu puntuación
+                y aparecer en el ranking, regístrate en 10 segundos.
               </div>
             </div>
             <div className="faq-item">
               <div className="faq-q pixel">¿CÓMO SOBREVIVEN SIN COBRAR?</div>
               <div className="faq-a">
-                Es un proyecto comunitario. Si te gusta, compártelo. Esa es toda la moneda que aceptamos.
+                Es un proyecto comunitario. Si te gusta, compártelo. Esa es toda
+                la moneda que aceptamos.
               </div>
             </div>
           </div>
@@ -255,7 +275,9 @@ export default function Home() {
         <Link href="/biblioteca" className="btn xl pulse final-cta">
           INSERTAR MONEDA →
         </Link>
-        <div className="final-tag">Gratis. Sin registro obligatorio. Empieza en segundos.</div>
+        <div className="final-tag">
+          Gratis. Sin registro obligatorio. Empieza en segundos.
+        </div>
       </section>
     </div>
   );

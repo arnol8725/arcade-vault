@@ -1,10 +1,13 @@
 import { notFound } from "next/navigation";
-import { GAMES, seededScores } from "@/lib/games";
+import { seededScores } from "@/lib/games";
+import { getGameById } from "@/lib/games-server";
 import { GameDetail } from "@/components/game-detail";
 
-export default async function GameDetailPage({ params }: PageProps<"/juego/[id]">) {
+export default async function GameDetailPage({
+  params,
+}: PageProps<"/juego/[id]">) {
   const { id } = await params;
-  const game = GAMES.find((g) => g.id === id);
+  const game = await getGameById(id);
 
   if (!game) notFound();
 
