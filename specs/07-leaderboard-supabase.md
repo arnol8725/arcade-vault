@@ -1,6 +1,6 @@
 # SPEC 07 — Leaderboard real con Supabase
 
-> **Status:** Aprroved
+> **Status:** Implemented
 > **Depends on:** SPEC 04, SPEC 06
 > **Date:** 2026-09-06
 > **Objective:** Reemplazar el leaderboard mock de `/salon` (`seededScores`) por un ranking real basado en una tabla `scores` de Supabase, alimentada cuando un usuario logueado guarda su partida.
@@ -102,15 +102,15 @@ export async function saveScoreToLeaderboard(
 
 ## Criterios de aceptación
 
-- [ ] `npm run build` termina sin errores de TypeScript ni de ESLint.
-- [ ] Existe la tabla `scores` en Supabase con RLS: `SELECT` público, `INSERT` solo para `authenticated` con `auth.uid() = user_id`, sin policies de `UPDATE`/`DELETE`.
-- [ ] Guardar una partida logueado inserta una fila real en `scores` con el `game_id`, `score` y `user_name` correctos.
-- [ ] Guardar una partida como invitado no inserta nada en Supabase; el comportamiento visible para el invitado no cambia respecto a hoy.
-- [ ] `/salon` reemplaza `seededScores` por datos reales: la pestaña "GLOBAL" muestra el top 10 de mejor score individual entre todos los juegos; cada pestaña de juego muestra el top 10 real de ese juego.
-- [ ] "TU MEJOR MARCA" muestra el score y rango reales del usuario logueado en el juego seleccionado (rango = cantidad de scores mayores + 1); si el usuario no tiene ningún score en ese juego, la sección no se muestra.
-- [ ] Los 8 juegos guardan en `scores` por igual, sin lógica condicional distinta entre `rocas` y el resto.
-- [ ] Ningún score existente de `localStorage["av_scores"]` se migra a Supabase.
-- [ ] Mientras carga `/salon` se ve un skeleton acorde a la estética pixel/neón existente; si falla la consulta, se muestra un mensaje de error sin romper el resto de la app.
+- [x] `npm run build` termina sin errores de TypeScript ni de ESLint.
+- [x] Existe la tabla `scores` en Supabase con RLS: `SELECT` público, `INSERT` solo para `authenticated` con `auth.uid() = user_id`, sin policies de `UPDATE`/`DELETE`.
+- [x] Guardar una partida logueado inserta una fila real en `scores` con el `game_id`, `score` y `user_name` correctos.
+- [x] Guardar una partida como invitado no inserta nada en Supabase; el comportamiento visible para el invitado no cambia respecto a hoy.
+- [x] `/salon` reemplaza `seededScores` por datos reales: la pestaña "GLOBAL" muestra el top 10 de mejor score individual entre todos los juegos; cada pestaña de juego muestra el top 10 real de ese juego.
+- [x] "TU MEJOR MARCA" muestra el score y rango reales del usuario logueado en el juego seleccionado (rango = cantidad de scores mayores + 1); si el usuario no tiene ningún score en ese juego, la sección no se muestra.
+- [x] Los 8 juegos guardan en `scores` por igual, sin lógica condicional distinta entre `rocas` y el resto.
+- [x] Ningún score existente de `localStorage["av_scores"]` se migra a Supabase.
+- [x] Mientras carga `/salon` se ve un skeleton acorde a la estética pixel/neón existente; si falla la consulta, se muestra un mensaje de error sin romper el resto de la app.
 
 ---
 

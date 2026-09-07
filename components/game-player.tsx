@@ -5,6 +5,7 @@ import Link from "next/link";
 import { AsteroidsCanvas } from "@/components/games/asteroids-canvas";
 import type { Game } from "@/lib/games";
 import { useUser } from "@/lib/user-context";
+import { saveScoreToLeaderboard } from "@/lib/scores";
 
 export function GamePlayer({ game }: { game: Game }) {
   const { user } = useUser();
@@ -50,6 +51,11 @@ export function GamePlayer({ game }: { game: Game }) {
       all.push({ game: game.id, score, name, at: Date.now() });
       localStorage.setItem("av_scores", JSON.stringify(all));
     } catch {}
+
+    saveScoreToLeaderboard(game.id, score).catch((error) => {
+      console.error("saveScoreToLeaderboard failed", error);
+    });
+
     setSaved(true);
   };
 
