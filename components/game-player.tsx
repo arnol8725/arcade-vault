@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AsteroidsCanvas } from "@/components/games/asteroids-canvas";
+import { TetrisCanvas } from "@/components/games/tetris-canvas";
 import type { Game } from "@/lib/games";
 import { useUser } from "@/lib/user-context";
 import { saveScoreToLeaderboard } from "@/lib/scores";
@@ -10,35 +11,42 @@ import { saveScoreToLeaderboard } from "@/lib/scores";
 export function GamePlayer({ game }: { game: Game }) {
   const { user } = useUser();
   const isAsteroids = game.id === "rocas";
+  const isTetris = game.id === "bloque-buster";
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [asteroidsLevel, setAsteroidsLevel] = useState(1);
+  const [tetrisLevel, setTetrisLevel] = useState(1);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const [name, setName] = useState(user ? user.name : "INVITADO");
   const [saved, setSaved] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
-  // "rocas" gets real level/lives from the Asteroids engine's callbacks. Every
-  // other game keeps the simulated derivation: level increments once per
-  // 2500-point threshold crossed by the fake score, computed on every render
-  // — no extra state needed for those.
-  const level = isAsteroids ? asteroidsLevel : Math.floor(score / 2500) + 1;
+  // "rocas" and "bloque-buster" get real level/lives from their engines'
+  // callbacks. Every other game keeps the simulated derivation: level
+  // increments once per 2500-point threshold crossed by the fake score,
+  // computed on every render — no extra state needed for those.
+  const level = isAsteroids
+    ? asteroidsLevel
+    : isTetris
+      ? tetrisLevel
+      : Math.floor(score / 2500) + 1;
 
   useEffect(() => {
-    if (isAsteroids || over || paused) return;
+    if (isAsteroids || isTetris || over || paused) return;
     const t = setInterval(
       () => setScore((s) => s + Math.floor(10 + Math.random() * 90)),
       220,
     );
     return () => clearInterval(t);
-  }, [isAsteroids, over, paused]);
+  }, [isAsteroids, isTetris, over, paused]);
 
   const endGame = () => setOver(true);
   const restart = () => {
     setScore(0);
     setLives(3);
     setAsteroidsLevel(1);
+    setTetrisLevel(1);
     setPaused(false);
     setOver(false);
     setSaved(false);
@@ -104,6 +112,14 @@ export function GamePlayer({ game }: { game: Game }) {
               onScoreChange={setScore}
               onLivesChange={setLives}
               onLevelChange={setAsteroidsLevel}
+              onGameOver={endGame}
+            />
+          ) : isTetris ? (
+            <TetrisCanvas
+              key={resetKey}
+              paused={paused}
+              onScoreChange={setScore}
+              onLevelChange={setTetrisLevel}
               onGameOver={endGame}
             />
           ) : (

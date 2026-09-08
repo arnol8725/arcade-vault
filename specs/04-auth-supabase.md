@@ -1,6 +1,6 @@
 # SPEC 04 — Autenticación real con Supabase (email + contraseña)
 
-> **Status:** Aprobado
+> **Status:** Implementado
 > **Depends on:** SPEC 01
 > **Date:** 2026-09-06
 > **Objective:** Reemplazar el login/registro mock de `/auth` (que aceptaba cualquier usuario sin validar nada) por autenticación real de Supabase con email y contraseña, manteniendo el modo "jugar como invitado" 100% local y sin tocar los componentes que ya consumen `useUser()`.
