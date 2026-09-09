@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AsteroidsCanvas } from "@/components/games/asteroids-canvas";
 import { TetrisCanvas } from "@/components/games/tetris-canvas";
+import { ArkanoideCanvas } from "@/components/games/arkanoide-canvas";
+import { SerpentinaCanvas } from "@/components/games/serpentina-canvas";
 import type { Game } from "@/lib/games";
 import { useUser } from "@/lib/user-context";
 import { saveScoreToLeaderboard } from "@/lib/scores";
@@ -12,34 +14,44 @@ export function GamePlayer({ game }: { game: Game }) {
   const { user } = useUser();
   const isAsteroids = game.id === "rocas";
   const isTetris = game.id === "bloque-buster";
+  const isArkanoide = game.id === "arkanoide";
+  const isSerpentina = game.id === "serpentina";
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [asteroidsLevel, setAsteroidsLevel] = useState(1);
   const [tetrisLevel, setTetrisLevel] = useState(1);
+  const [arkanoideLevel, setArkanoideLevel] = useState(1);
+  const [serpentinaLevel, setSerpentinaLevel] = useState(1);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const [name, setName] = useState(user ? user.name : "INVITADO");
   const [saved, setSaved] = useState(false);
   const [resetKey, setResetKey] = useState(0);
 
-  // "rocas" and "bloque-buster" get real level/lives from their engines'
-  // callbacks. Every other game keeps the simulated derivation: level
-  // increments once per 2500-point threshold crossed by the fake score,
-  // computed on every render — no extra state needed for those.
+  // "rocas", "bloque-buster", "arkanoide" and "serpentina" get real
+  // level/lives from their engines' callbacks. Every other game keeps the
+  // simulated derivation: level increments once per 2500-point threshold
+  // crossed by the fake score, computed on every render — no extra state
+  // needed for those.
   const level = isAsteroids
     ? asteroidsLevel
     : isTetris
       ? tetrisLevel
-      : Math.floor(score / 2500) + 1;
+      : isArkanoide
+        ? arkanoideLevel
+        : isSerpentina
+          ? serpentinaLevel
+          : Math.floor(score / 2500) + 1;
 
   useEffect(() => {
-    if (isAsteroids || isTetris || over || paused) return;
+    if (isAsteroids || isTetris || isArkanoide || isSerpentina || over || paused)
+      return;
     const t = setInterval(
       () => setScore((s) => s + Math.floor(10 + Math.random() * 90)),
       220,
     );
     return () => clearInterval(t);
-  }, [isAsteroids, isTetris, over, paused]);
+  }, [isAsteroids, isTetris, isArkanoide, isSerpentina, over, paused]);
 
   const endGame = () => setOver(true);
   const restart = () => {
@@ -47,6 +59,8 @@ export function GamePlayer({ game }: { game: Game }) {
     setLives(3);
     setAsteroidsLevel(1);
     setTetrisLevel(1);
+    setArkanoideLevel(1);
+    setSerpentinaLevel(1);
     setPaused(false);
     setOver(false);
     setSaved(false);
@@ -120,6 +134,24 @@ export function GamePlayer({ game }: { game: Game }) {
               paused={paused}
               onScoreChange={setScore}
               onLevelChange={setTetrisLevel}
+              onGameOver={endGame}
+            />
+          ) : isArkanoide ? (
+            <ArkanoideCanvas
+              key={resetKey}
+              paused={paused}
+              onScoreChange={setScore}
+              onLivesChange={setLives}
+              onLevelChange={setArkanoideLevel}
+              onGameOver={endGame}
+            />
+          ) : isSerpentina ? (
+            <SerpentinaCanvas
+              key={resetKey}
+              paused={paused}
+              onScoreChange={setScore}
+              onLivesChange={setLives}
+              onLevelChange={setSerpentinaLevel}
               onGameOver={endGame}
             />
           ) : (
