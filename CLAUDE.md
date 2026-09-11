@@ -21,15 +21,15 @@ No hay test runner configurado. La verificación de un spec es `npm run build` +
 
 ## Rutas (App Router)
 
-| Ruta                 | Archivo                          |
-| -------------------- | -------------------------------- |
-| `/` (home)           | `app/page.tsx`                   |
-| `/acerca-de`         | `app/acerca-de/page.tsx`         |
-| `/auth`              | `app/auth/page.tsx`              |
-| `/biblioteca`        | `app/biblioteca/page.tsx`        |
-| `/juego/[id]`        | `app/juego/[id]/page.tsx`        |
-| `/juego/[id]/jugar`  | `app/juego/[id]/jugar/page.tsx`  |
-| `/salon`             | `app/salon/page.tsx`             |
+| Ruta                | Archivo                         |
+| ------------------- | ------------------------------- |
+| `/` (home)          | `app/page.tsx`                  |
+| `/acerca-de`        | `app/acerca-de/page.tsx`        |
+| `/auth`             | `app/auth/page.tsx`             |
+| `/biblioteca`       | `app/biblioteca/page.tsx`       |
+| `/juego/[id]`       | `app/juego/[id]/page.tsx`       |
+| `/juego/[id]/jugar` | `app/juego/[id]/jugar/page.tsx` |
+| `/salon`            | `app/salon/page.tsx`            |
 
 y mas (ver reference/implemented-games.md) cuando tu necesites revisar cual juego esta implementado y como implementar uno nuevo.
 
@@ -47,6 +47,8 @@ El contrato completo (motor, componente, wiring, reglas duras) está en `.claude
 - `onGameOver` es edge-triggered (se dispara una sola vez) y el motor nunca dibuja su propio overlay de GAME OVER: ese modal es responsabilidad exclusiva de `GamePlayer`.
 
 Motores reales hoy: `rocas` (Asteroids), `bloque-buster` (Tetris), `arkanoide` (Arkanoid), `serpentina` (Snake). Los demás slots del catálogo (`caida`, `gloton`, `invasores`, `ranaria`, `duelo-pixel`) siguen siendo decorativos.
+
+Para decidir **cuál** de esos slots llenar (o qué juego nuevo dar de alta), usar el subagente `game-planner` antes de `/nuevo-juego` — ver la sección Workflow Spec-Driven. Sus sugerencias quedan registradas en `references/game-suggestions-todo.md`.
 
 `references/started-games/` contiene los juegos originales sin portar (`02-asteroids`, `03-tetris`, `04-arkanoid`). Toda la carpeta `references/**` está en `globalIgnores` de ESLint.
 
@@ -67,6 +69,7 @@ Motores reales hoy: `rocas` (Asteroids), `bloque-buster` (Tetris), `arkanoide` (
 - Hay 10 specs escritos y prácticamente todos implementados. Pendiente de higiene: los valores de Status están inconsistentes (`Implementado`, `Implemented`, `Implemantado`) y `08-tetris-bloque-buster.md` sigue en `Approved` aunque ya está implementado.
 - `/spec` y `/spec-impl` están instalados (`.agents/skills/spec`, `.agents/skills/spec-impl`; también enlazados en `~/.claude/skills`), basados en https://github.com/Klerith/fernando-skills.
 - `/nuevo-juego` (`.claude/skills/nuevo-juego/`) es un skill del proyecto: redacta el spec de un juego y luego implementa motor + canvas + wiring. Tiene `disable-model-invocation: true`, así que solo corre si el usuario lo invoca explícitamente.
+- El subagente `game-planner` (`.claude/agents/game-planner.md`) es el paso previo: analiza el catálogo y decide **qué** juego conviene implementar a continuación, evaluando candidatos contra una rúbrica de encaje. No escribe specs ni código — su única salida escrita es `references/game-suggestions-todo.md`, que además es su memoria: lo lee antes de proponer para no repetir sugerencias entre sesiones. Solo corre si el usuario lo invoca explícitamente. El handoff después de una recomendación es `/nuevo-juego <slug>`.
 
 ## Convenciones
 
