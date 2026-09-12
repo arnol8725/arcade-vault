@@ -2,6 +2,8 @@
 // Framework-agnostic: no React, no module-level DOM access — only the
 // CanvasRenderingContext2D/HTMLCanvasElement passed in by the caller.
 
+import { DEFAULT_SKIN, type SkinId } from "@/lib/games/skins";
+
 export type AsteroidSize = 1 | 2 | 3;
 export type EngineState = "playing" | "dead" | "gameover";
 
@@ -17,6 +19,82 @@ export interface AsteroidsEngine {
   stop: () => void; // cancels the loop and removes key listeners
   setPaused: (paused: boolean) => void;
   reset: () => void; // back to state 'playing', score 0, lives 3, level 1
+  setSkin: (skin: SkinId) => void; // swaps the palette in place, sin reiniciar la partida
+}
+
+// ── Paleta ────────────────────────────────────────────────────────────────
+// Inyectada explícitamente en el motor (nunca leída del DOM). `clasico`
+// reproduce exactamente los colores que el juego tenía antes de los skins.
+export interface AsteroidsPalette {
+  bg: string;
+  ship: string;
+  thruster: string;
+  asteroid: string;
+  bullet: string;
+  powerUp: string;
+  /** Canal RGB de las partículas, en formato "r, g, b" (el alpha lo pone el motor). */
+  particleRgb: string;
+  hud: string;
+  hudAccent: string;
+  /** Radio del glow en px; 0 = sin glow (clásico vectorial puro). */
+  glow: number;
+}
+
+// Contraste medido contra el `bg` de cada skin (WCAG, 2026-09-11):
+// clásico ink 21:1 · neón ink 18.4:1 / acento mínimo 6.6:1 ·
+// retro ink 14.9:1 / acento mínimo 6.4:1. Todos ≥ 4.5:1 (texto) y ≥ 3:1 (acentos).
+export const ASTEROIDS_PALETTES: Record<SkinId, AsteroidsPalette> = {
+  clasico: {
+    bg: "#000000",
+    ship: "#fff",
+    thruster: "rgba(255, 130, 0, 0.85)",
+    asteroid: "#fff",
+    bullet: "#fff",
+    powerUp: "#0ff",
+    particleRgb: "255, 255, 255",
+    hud: "#fff",
+    hudAccent: "#0ff",
+    glow: 0,
+  },
+  neon: {
+    bg: "#04060e",
+    ship: "#3dfcff",
+    thruster: "rgba(255, 157, 46, 0.9)",
+    asteroid: "#9fe8ff",
+    bullet: "#ff4da6",
+    powerUp: "#faff5c",
+    particleRgb: "126, 240, 255",
+    hud: "#eaf6ff",
+    hudAccent: "#faff5c",
+    glow: 10,
+  },
+  retro: {
+    bg: "#0b0805",
+    ship: "#ffb000",
+    thruster: "rgba(255, 106, 26, 0.9)",
+    asteroid: "#d99321",
+    bullet: "#ffe9b5",
+    powerUp: "#fff0c2",
+    particleRgb: "201, 130, 31",
+    hud: "#ffd9a3",
+    hudAccent: "#ffb000",
+    glow: 3,
+  },
+};
+
+export function resolveAsteroidsPalette(skin: SkinId): AsteroidsPalette {
+  return ASTEROIDS_PALETTES[skin] ?? ASTEROIDS_PALETTES[DEFAULT_SKIN];
+}
+
+/** Enciende el glow del skin activo sobre el `ctx` (no-op si `glow` es 0). */
+function setGlow(
+  ctx: CanvasRenderingContext2D,
+  palette: AsteroidsPalette,
+  color: string,
+): void {
+  if (palette.glow <= 0) return;
+  ctx.shadowBlur = palette.glow;
+  ctx.shadowColor = color;
 }
 
 const W = 800;
@@ -74,11 +152,14 @@ class Bullet {
     if (this.ttl <= 0) this.dead = true;
   }
 
-  draw(ctx: CanvasRenderingContext2D): void {
-    ctx.fillStyle = "#fff";
+  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette): void {
+    ctx.save();
+    setGlow(ctx, palette, palette.bullet);
+    ctx.fillStyle = palette.bullet;
     ctx.beginPath();
     ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
     ctx.fill();
+    ctx.restore();
   }
 }
 
@@ -132,11 +213,12 @@ class Asteroid {
     ];
   }
 
-  draw(ctx: CanvasRenderingContext2D): void {
+  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette): void {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rot);
-    ctx.strokeStyle = "#fff";
+    setGlow(ctx, palette, palette.asteroid);
+    ctx.strokeStyle = palette.asteroid;
     ctx.lineWidth = 1.5;
     ctx.lineJoin = "round";
     ctx.beginPath();
@@ -175,22 +257,26 @@ class PowerUp {
     if (this.ttl <= 0) this.dead = true;
   }
 
-  draw(ctx: CanvasRenderingContext2D): void {
+  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette): void {
     if (this.ttl < 2 && Math.floor(this.ttl * 8) % 2 === 0) return;
     const pulse = 0.85 + Math.sin(performance.now() / 150) * 0.15;
     ctx.save();
+    setGlow(ctx, palette, palette.powerUp);
     ctx.translate(this.x, this.y);
     ctx.rotate(Math.PI / 4);
-    ctx.strokeStyle = "#0ff";
+    ctx.strokeStyle = palette.powerUp;
     ctx.lineWidth = 2;
     const r = this.radius * pulse;
     ctx.strokeRect(-r, -r, r * 2, r * 2);
     ctx.restore();
-    ctx.fillStyle = "#0ff";
+    ctx.save();
+    setGlow(ctx, palette, palette.powerUp);
+    ctx.fillStyle = palette.powerUp;
     ctx.font = "bold 12px monospace";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.fillText("3x", this.x, this.y);
+    ctx.restore();
   }
 }
 
@@ -262,7 +348,7 @@ class Ship {
     return [new Bullet(ox, oy, this.angle)];
   }
 
-  draw(ctx: CanvasRenderingContext2D): void {
+  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette): void {
     if (this.dead) return;
     // Blink while invincible after respawning
     if (this.invincible > 0 && Math.floor(this.invincible * 8) % 2 === 0)
@@ -271,7 +357,8 @@ class Ship {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.angle);
-    ctx.strokeStyle = "#fff";
+    setGlow(ctx, palette, palette.ship);
+    ctx.strokeStyle = palette.ship;
     ctx.lineWidth = 1.5;
     ctx.lineJoin = "round";
 
@@ -290,7 +377,8 @@ class Ship {
       ctx.moveTo(-8, -4);
       ctx.lineTo(-8 - rand(6, 14), 0);
       ctx.lineTo(-8, 4);
-      ctx.strokeStyle = "rgba(255, 130, 0, 0.85)";
+      setGlow(ctx, palette, palette.thruster);
+      ctx.strokeStyle = palette.thruster;
       ctx.stroke();
     }
 
@@ -326,9 +414,9 @@ class Particle {
     if (this.ttl <= 0) this.dead = true;
   }
 
-  draw(ctx: CanvasRenderingContext2D): void {
+  draw(ctx: CanvasRenderingContext2D, palette: AsteroidsPalette): void {
     const alpha = this.ttl / this.life;
-    ctx.strokeStyle = `rgba(255,255,255,${alpha.toFixed(2)})`;
+    ctx.strokeStyle = `rgba(${palette.particleRgb},${alpha.toFixed(2)})`;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(this.x, this.y);
@@ -347,6 +435,7 @@ const PREVENTABLE_CODES = new Set([
 export function createAsteroidsEngine(
   canvas: HTMLCanvasElement,
   callbacks: AsteroidsEngineCallbacks,
+  skin: SkinId = DEFAULT_SKIN,
 ): AsteroidsEngine {
   const maybeCtx = canvas.getContext("2d");
   if (!maybeCtx) {
@@ -356,6 +445,9 @@ export function createAsteroidsEngine(
   // narrowing from the check above into them — give ctx a non-nullable
   // static type instead of relying on narrowing.
   const ctx = maybeCtx as CanvasRenderingContext2D;
+
+  // Paleta activa: dato inyectado, nunca leído del DOM desde el loop.
+  let palette = resolveAsteroidsPalette(skin);
 
   // ── Input ─────────────────────────────────────────────────────────────
   const keys: KeyState = {};
@@ -554,7 +646,8 @@ export function createAsteroidsEngine(
     ctx.save();
     ctx.translate(x, y);
     ctx.rotate(-Math.PI / 2);
-    ctx.strokeStyle = "#fff";
+    setGlow(ctx, palette, palette.hud);
+    ctx.strokeStyle = palette.hud;
     ctx.lineWidth = 1.2;
     ctx.lineJoin = "round";
     ctx.beginPath();
@@ -568,7 +661,9 @@ export function createAsteroidsEngine(
   }
 
   function drawHUD(): void {
-    ctx.fillStyle = "#fff";
+    ctx.save();
+    setGlow(ctx, palette, palette.hud);
+    ctx.fillStyle = palette.hud;
     ctx.font = "15px monospace";
 
     ctx.textAlign = "left";
@@ -576,25 +671,30 @@ export function createAsteroidsEngine(
 
     ctx.textAlign = "center";
     ctx.fillText(`NIVEL ${level}`, W / 2, 26);
+    ctx.restore();
 
     for (let i = 0; i < lives; i++) drawLifeIcon(W - 16 - i * 22, 18);
 
     if (ship.tripleShot > 0) {
+      ctx.save();
+      setGlow(ctx, palette, palette.hudAccent);
       ctx.textAlign = "left";
-      ctx.fillStyle = "#0ff";
+      ctx.font = "15px monospace";
+      ctx.fillStyle = palette.hudAccent;
       ctx.fillText(`3x  ${ship.tripleShot.toFixed(1)}s`, 14, 46);
+      ctx.restore();
     }
   }
 
   function draw(): void {
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, W, H);
 
-    particles.forEach((p) => p.draw(ctx));
-    asteroids.forEach((a) => a.draw(ctx));
-    powerUps.forEach((p) => p.draw(ctx));
-    bullets.forEach((b) => b.draw(ctx));
-    ship.draw(ctx);
+    particles.forEach((p) => p.draw(ctx, palette));
+    asteroids.forEach((a) => a.draw(ctx, palette));
+    powerUps.forEach((p) => p.draw(ctx, palette));
+    bullets.forEach((b) => b.draw(ctx, palette));
+    ship.draw(ctx, palette);
 
     drawHUD();
     // Note: no internal "GAME OVER" overlay and no Space-to-restart here —
@@ -641,6 +741,9 @@ export function createAsteroidsEngine(
       initGame();
       reportChanges();
       lastTime = null;
+    },
+    setSkin(value: SkinId): void {
+      palette = resolveAsteroidsPalette(value);
     },
   };
 }

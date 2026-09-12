@@ -42,11 +42,7 @@ export function GameCard({ game }: { game: Game }) {
             <span>MEJOR PUNTUACIÓN</span>
             <b>{game.best.toLocaleString("es-ES")}</b>
           </div>
-          <span
-            className={"btn " + (game.color === "magenta" ? "magenta" : game.color === "yellow" ? "yellow" : "")}
-          >
-            JUGAR
-          </span>
+          <span className={"btn " + game.color}>JUGAR</span>
         </div>
       </div>
     </Link>

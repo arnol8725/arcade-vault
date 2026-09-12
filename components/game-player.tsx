@@ -6,12 +6,15 @@ import { AsteroidsCanvas } from "@/components/games/asteroids-canvas";
 import { TetrisCanvas } from "@/components/games/tetris-canvas";
 import { ArkanoideCanvas } from "@/components/games/arkanoide-canvas";
 import { SerpentinaCanvas } from "@/components/games/serpentina-canvas";
+import { SkinPicker } from "@/components/skin-picker";
 import type { Game } from "@/lib/games";
 import { useUser } from "@/lib/user-context";
+import { useSkin } from "@/lib/use-skin";
 import { saveScoreToLeaderboard } from "@/lib/scores";
 
 export function GamePlayer({ game }: { game: Game }) {
   const { user } = useUser();
+  const [skin, setSkin] = useSkin();
   const isAsteroids = game.id === "rocas";
   const isTetris = game.id === "bloque-buster";
   const isArkanoide = game.id === "arkanoide";
@@ -44,7 +47,14 @@ export function GamePlayer({ game }: { game: Game }) {
           : Math.floor(score / 2500) + 1;
 
   useEffect(() => {
-    if (isAsteroids || isTetris || isArkanoide || isSerpentina || over || paused)
+    if (
+      isAsteroids ||
+      isTetris ||
+      isArkanoide ||
+      isSerpentina ||
+      over ||
+      paused
+    )
       return;
     const t = setInterval(
       () => setScore((s) => s + Math.floor(10 + Math.random() * 90)),
@@ -104,6 +114,7 @@ export function GamePlayer({ game }: { game: Game }) {
             <div className="v">{String(level).padStart(2, "0")}</div>
           </div>
         </div>
+        <SkinPicker value={skin} onChange={setSkin} />
         <div className="hud-actions">
           <button className="btn yellow" onClick={() => setPaused((p) => !p)}>
             {paused ? "REANUDAR" : "PAUSA"}
@@ -123,6 +134,7 @@ export function GamePlayer({ game }: { game: Game }) {
             <AsteroidsCanvas
               key={resetKey}
               paused={paused}
+              skin={skin}
               onScoreChange={setScore}
               onLivesChange={setLives}
               onLevelChange={setAsteroidsLevel}
@@ -140,6 +152,7 @@ export function GamePlayer({ game }: { game: Game }) {
             <ArkanoideCanvas
               key={resetKey}
               paused={paused}
+              skin={skin}
               onScoreChange={setScore}
               onLivesChange={setLives}
               onLevelChange={setArkanoideLevel}
@@ -149,6 +162,7 @@ export function GamePlayer({ game }: { game: Game }) {
             <SerpentinaCanvas
               key={resetKey}
               paused={paused}
+              skin={skin}
               onScoreChange={setScore}
               onLivesChange={setLives}
               onLevelChange={setSerpentinaLevel}

@@ -5,9 +5,12 @@ import {
   createArkanoideEngine,
   type ArkanoideEngine,
 } from "@/lib/games/arkanoide-engine";
+import { DEFAULT_SKIN, type SkinId } from "@/lib/games/skins";
 
 interface ArkanoideCanvasProps {
   paused: boolean;
+  /** Skin activo; el motor re-tinta la hoja de sprites sin reiniciar la partida. */
+  skin?: SkinId;
   onScoreChange: (score: number) => void;
   onLivesChange: (lives: number) => void;
   onLevelChange: (level: number) => void;
@@ -16,6 +19,7 @@ interface ArkanoideCanvasProps {
 
 export function ArkanoideCanvas({
   paused,
+  skin = DEFAULT_SKIN,
   onScoreChange,
   onLivesChange,
   onLevelChange,
@@ -41,16 +45,27 @@ export function ArkanoideCanvas({
     };
   });
 
+  // Skin vigente al momento de crear el motor (el efecto de montaje corre una
+  // sola vez; los cambios posteriores entran por `setSkin`).
+  const skinRef = useRef(skin);
+  useEffect(() => {
+    skinRef.current = skin;
+  });
+
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const engine = createArkanoideEngine(canvas, {
-      onScoreChange: (score) => callbacksRef.current.onScoreChange(score),
-      onLivesChange: (lives) => callbacksRef.current.onLivesChange(lives),
-      onLevelChange: (level) => callbacksRef.current.onLevelChange(level),
-      onGameOver: (finalScore) => callbacksRef.current.onGameOver(finalScore),
-    });
+    const engine = createArkanoideEngine(
+      canvas,
+      {
+        onScoreChange: (score) => callbacksRef.current.onScoreChange(score),
+        onLivesChange: (lives) => callbacksRef.current.onLivesChange(lives),
+        onLevelChange: (level) => callbacksRef.current.onLevelChange(level),
+        onGameOver: (finalScore) => callbacksRef.current.onGameOver(finalScore),
+      },
+      skinRef.current,
+    );
     engineRef.current = engine;
     engine.start();
 
@@ -63,6 +78,10 @@ export function ArkanoideCanvas({
   useEffect(() => {
     engineRef.current?.setPaused(paused);
   }, [paused]);
+
+  useEffect(() => {
+    engineRef.current?.setSkin(skin);
+  }, [skin]);
 
   return (
     <canvas

@@ -5,14 +5,10 @@
 // the Image()/Audio() elements the precarga step creates internally, as
 // required by the asset-gating step of the spec).
 
+import { DEFAULT_SKIN, type SkinId } from "@/lib/games/skins";
+
 export type BlockColor =
-  | "red"
-  | "yellow"
-  | "cyan"
-  | "magenta"
-  | "hotpink"
-  | "green"
-  | "gray";
+  "red" | "yellow" | "cyan" | "magenta" | "hotpink" | "green" | "gray";
 export type EngineState = "playing" | "gameover"; // "win" del original colapsa en "gameover"
 
 export interface Block {
@@ -36,6 +32,86 @@ export interface ArkanoideEngine {
   stop: () => void; // remueve listeners y cancela el rAF
   setPaused: (paused: boolean) => void;
   reset: () => void; // vuelve a state 'playing', score 0, lives 3, nivel 1
+  setSkin: (skin: SkinId) => void; // re-tinta la hoja de sprites, sin reiniciar la partida
+}
+
+// ── Paleta ────────────────────────────────────────────────────────────────
+// Inyectada explícitamente (nunca leída del DOM). Caso especial del catálogo:
+// los colores de Arkanoide están horneados en `spritesheet-breakout.png`, así
+// que el skin no se resuelve con `fillStyle` sino tintando la hoja entera en
+// un canvas fuera de pantalla — una sola vez por cambio de skin, nunca por
+// frame. No se genera arte nuevo: es siempre el mismo PNG recompuesto.
+
+/** Un paso de composición sobre la hoja de sprites (`globalCompositeOperation`). */
+export interface SheetTintStep {
+  mode: GlobalCompositeOperation;
+  color: string;
+  alpha: number;
+}
+
+export interface ArkanoidePalette {
+  bg: string;
+  /** Texto del HUD (score / nivel). */
+  hud: string;
+  /** Radio del glow en px; 0 = sin glow (clásico tal cual). */
+  glow: number;
+  /** Color del glow de pala, bola, vidas y HUD. */
+  glowColor: string;
+  /** Color del glow de las explosiones de bloque. */
+  flashColor: string;
+  /** Vacío = hoja original sin tocar (clásico). */
+  sheetTint: readonly SheetTintStep[];
+}
+
+// Contraste medido (WCAG) contra el `bg` de cada skin, sobre los colores
+// reales muestreados del spritesheet — dominante y promedio de cada sprite:
+//   clásico  HUD 21.0:1  · sprites 10.9:1 (pala) … 2.06:1 (bloque gris, valor
+//            preexistente que no se toca: clásico = la paleta de hoy tal cual)
+//   neón     HUD 18.4:1  · sprites 18.6:1 … 4.16:1 (bloque gris)
+//   retro    HUD 14.9:1  · sprites 12.7:1 … 3.96:1 (bloque gris)
+// Todo texto ≥ 4.5:1; todo acento de neón/retro ≥ 3:1.
+export const ARKANOIDE_PALETTES: Record<SkinId, ArkanoidePalette> = {
+  clasico: {
+    bg: "#000",
+    hud: "#fff",
+    glow: 0,
+    glowColor: "#fff",
+    flashColor: "#fff",
+    sheetTint: [],
+  },
+  neon: {
+    bg: "#04060e",
+    hud: "#eaf6ff",
+    glow: 9,
+    glowColor: "#3dfcff",
+    flashColor: "#faff5c",
+    // 1) `saturation` con un rojo puro: toma la saturación del source (máxima)
+    //    y conserva hue + luminosidad del sprite → mismos bloques, saturados.
+    // 2) `screen` cian tenue: levanta los contornos oscuros sin quemar los
+    //    highlights, que es lo que da el aire de tubo de neón.
+    sheetTint: [
+      { mode: "saturation", color: "#ff0000", alpha: 1 },
+      { mode: "screen", color: "#3dfcff", alpha: 0.24 },
+    ],
+  },
+  retro: {
+    bg: "#0b0805",
+    hud: "#ffd9a3",
+    glow: 3,
+    glowColor: "#ffb000",
+    flashColor: "#ffe9b5",
+    // 1) `color` ámbar: hue + saturación del ámbar, luminosidad del sprite →
+    //    fósforo monocromático de gabinete, con el sombreado original intacto.
+    // 2) `screen` cálido: separa los bloques más oscuros del fondo.
+    sheetTint: [
+      { mode: "color", color: "#ffb000", alpha: 1 },
+      { mode: "screen", color: "#ff9600", alpha: 0.34 },
+    ],
+  },
+};
+
+export function resolveArkanoidePalette(skin: SkinId): ArkanoidePalette {
+  return ARKANOIDE_PALETTES[skin] ?? ARKANOIDE_PALETTES[DEFAULT_SKIN];
 }
 
 const W = 800;
@@ -269,9 +345,52 @@ function preloadAudio(src: string): Promise<HTMLAudioElement> {
   });
 }
 
+/**
+ * Devuelve una copia de la hoja de sprites con el tinte del skin aplicado.
+ * Se llama una sola vez por cambio de skin (nunca dentro del loop).
+ *
+ * Los modos de blending componen también sobre los píxeles transparentes de
+ * la hoja, así que el último paso restaura el canal alpha original con
+ * `destination-in`.
+ */
+function buildTintedSheet(
+  source: HTMLImageElement,
+  steps: readonly SheetTintStep[],
+  doc: Document,
+): CanvasImageSource {
+  if (steps.length === 0) return source; // clásico: la hoja original, sin tocar
+  const width = source.naturalWidth || source.width;
+  const height = source.naturalHeight || source.height;
+  if (!width || !height) return source;
+
+  const off = doc.createElement("canvas");
+  off.width = width;
+  off.height = height;
+  const octx = off.getContext("2d");
+  if (!octx) return source;
+
+  octx.drawImage(source, 0, 0);
+  for (const step of steps) {
+    octx.globalCompositeOperation = step.mode;
+    // Si el navegador no conoce el modo, la asignación es un no-op y queda el
+    // anterior: saltar el paso en vez de pintar un rectángulo sólido encima.
+    if (octx.globalCompositeOperation !== step.mode) continue;
+    octx.globalAlpha = step.alpha;
+    octx.fillStyle = step.color;
+    octx.fillRect(0, 0, width, height);
+  }
+
+  octx.globalAlpha = 1;
+  octx.globalCompositeOperation = "destination-in";
+  octx.drawImage(source, 0, 0);
+  octx.globalCompositeOperation = "source-over";
+  return off;
+}
+
 export function createArkanoideEngine(
   canvas: HTMLCanvasElement,
   callbacks: ArkanoideEngineCallbacks,
+  skin: SkinId = DEFAULT_SKIN,
 ): ArkanoideEngine {
   const maybeCtx = canvas.getContext("2d");
   if (!maybeCtx) {
@@ -284,8 +403,17 @@ export function createArkanoideEngine(
 
   // ── Assets ────────────────────────────────────────────────────────────
   let image: HTMLImageElement | null = null;
+  // Hoja de sprites ya tintada con el skin activo; es lo que consume `draw`.
+  let sheet: CanvasImageSource | null = null;
   let bounceAudio: HTMLAudioElement | null = null;
   let breakAudio: HTMLAudioElement | null = null;
+  let palette = resolveArkanoidePalette(skin);
+
+  function refreshSheet(): void {
+    sheet = image
+      ? buildTintedSheet(image, palette.sheetTint, canvas.ownerDocument)
+      : null;
+  }
 
   function playClone(audio: HTMLAudioElement | null): void {
     if (!audio) return;
@@ -318,7 +446,14 @@ export function createArkanoideEngine(
 
   // ── Game state ────────────────────────────────────────────────────────
   const paddle: Paddle = { x: 0, y: 560, w: 81, h: 14 };
-  const ball: Ball = { x: 0, y: 0, w: 16, h: 16, vx: BASE_BALL_VX, vy: BASE_BALL_VY };
+  const ball: Ball = {
+    x: 0,
+    y: 0,
+    w: 16,
+    h: 16,
+    vx: BASE_BALL_VX,
+    vy: BASE_BALL_VY,
+  };
   let blocks: Block[] = [];
   let explosions: Explosion[] = [];
   let lives = 3;
@@ -470,19 +605,44 @@ export function createArkanoideEngine(
   }
 
   // ── Draw ──────────────────────────────────────────────────────────────
-  function drawSprite(sp: SpriteFrame, x: number, y: number, w: number, h: number): void {
-    if (!image) return;
-    ctx.drawImage(image, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
+  function drawSprite(
+    sp: SpriteFrame,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    glowColor?: string,
+  ): void {
+    if (!sheet) return;
+    if (glowColor && palette.glow > 0) {
+      ctx.save();
+      ctx.shadowBlur = palette.glow;
+      ctx.shadowColor = glowColor;
+      ctx.drawImage(sheet, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
+      ctx.restore();
+      return;
+    }
+    ctx.drawImage(sheet, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
   }
 
   function draw(): void {
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, W, H);
 
-    if (!image) return; // asset gate: nothing to draw before precarga resolves
+    if (!sheet) return; // asset gate: nothing to draw before precarga resolves
 
+    // Los bloques van sin glow a propósito: están pegados entre sí, así que el
+    // halo quedaría tapado y solo costaría frames. Su color de skin ya viene
+    // horneado en la hoja tintada.
     for (const block of blocks) {
-      if (block.alive) drawSprite(SPRITES.blocks[block.color], block.x, block.y, block.w, block.h);
+      if (block.alive)
+        drawSprite(
+          SPRITES.blocks[block.color],
+          block.x,
+          block.y,
+          block.w,
+          block.h,
+        );
     }
 
     for (const exp of explosions) {
@@ -490,25 +650,45 @@ export function createArkanoideEngine(
         Math.floor((exp.elapsed / EXPLOSION_DURATION) * 4),
         3,
       );
-      drawSprite(EXPLOSION_FRAMES[exp.color][frameIndex], exp.x, exp.y, exp.w, exp.h);
+      drawSprite(
+        EXPLOSION_FRAMES[exp.color][frameIndex],
+        exp.x,
+        exp.y,
+        exp.w,
+        exp.h,
+        palette.flashColor,
+      );
     }
 
-    drawSprite(SPRITES.paddle, paddle.x, paddle.y, paddle.w, paddle.h);
-    drawSprite(SPRITES.ball, ball.x, ball.y, ball.w, ball.h);
+    drawSprite(
+      SPRITES.paddle,
+      paddle.x,
+      paddle.y,
+      paddle.w,
+      paddle.h,
+      palette.glowColor,
+    );
+    drawSprite(SPRITES.ball, ball.x, ball.y, ball.w, ball.h, palette.glowColor);
 
     if (state === "playing") {
-      ctx.fillStyle = "#fff";
+      ctx.save();
+      if (palette.glow > 0) {
+        ctx.shadowBlur = palette.glow;
+        ctx.shadowColor = palette.glowColor;
+      }
+      ctx.fillStyle = palette.hud;
       ctx.font = "bold 18px monospace";
       ctx.textAlign = "left";
       ctx.textBaseline = "top";
       ctx.fillText(`Score: ${score}`, 10, 10);
       ctx.textAlign = "center";
       ctx.fillText(`Nivel: ${level}`, W / 2, 10);
+      ctx.restore();
       const ballSize = 16;
       const ballSpacing = 4;
       for (let i = 0; i < lives; i++) {
         const bx = W - 10 - (lives - i) * (ballSize + ballSpacing);
-        drawSprite(SPRITES.ball, bx, 10, ballSize, ballSize);
+        drawSprite(SPRITES.ball, bx, 10, ballSize, ballSize, palette.glowColor);
       }
     }
   }
@@ -544,6 +724,7 @@ export function createArkanoideEngine(
         .then(([img, bounce, brk]) => {
           if (stopped) return; // stop() ran before the precarga resolved
           image = img;
+          refreshSheet();
           bounceAudio = bounce;
           breakAudio = brk;
           initGame();
@@ -572,6 +753,11 @@ export function createArkanoideEngine(
       initGame();
       reportChanges();
       lastTime = null;
+    },
+    setSkin(value: SkinId): void {
+      palette = resolveArkanoidePalette(value);
+      // Re-tinta la hoja en caliente: la partida en curso no se reinicia.
+      refreshSheet();
     },
   };
 }

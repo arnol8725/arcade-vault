@@ -35,6 +35,46 @@ Reglas que sigue `lib/games/asteroids-engine.ts` y que todo motor nuevo debe res
 - **Listeners scoped al ciclo de vida**: se agregan en `start()` y se remueven en `stop()`, nunca fijados a nivel de módulo. `preventDefault()` en toda tecla que scrollearía la página (flechas, espacio).
 - **Gate de precarga** si el juego depende de assets async (audio, spritesheet): el loop no arranca hasta que estén listos.
 
+## Addendum: contrato de paleta (skins) — obligatorio para todo motor nuevo
+
+> Agregado por el subagente `skin-designer` (2026-09-11). **Extiende** el contrato de arriba, no lo reemplaza: `start`/`stop`/`setPaused`/`reset`, diff-and-report, `onGameOver` edge-triggered y "sin overlay propio de fin de partida" siguen valiendo igual.
+
+Todo juego con motor real debe soportar los tres skins del sitio — `clasico` (default, la paleta de siempre), `neon` y `retro` — definidos en `lib/games/skins.ts`:
+
+```ts
+export type SkinId = "clasico" | "neon" | "retro";
+```
+
+**Firma extendida** (tercer parámetro opcional + un método más):
+
+```ts
+export function create<Name>Engine(
+  canvas: HTMLCanvasElement,
+  callbacks: <Name>EngineCallbacks,
+  skin?: SkinId, // default: DEFAULT_SKIN ("clasico")
+): <Name>Engine;
+
+export interface <Name>Engine {
+  start: () => void;
+  stop: () => void;
+  setPaused: (paused: boolean) => void;
+  reset: () => void;
+  setSkin: (skin: SkinId) => void; // cambia la paleta en caliente, sin reiniciar la partida
+}
+```
+
+Reglas (referencia viva: `lib/games/asteroids-engine.ts`):
+
+- **Paleta inyectada, nunca leída del DOM.** El motor exporta su propia tabla estática `<NAME>_PALETTES: Record<SkinId, <Name>Palette>` y un `resolve<Name>Palette(skin)`. Prohibido `getComputedStyle`/`document` dentro del loop — ese es justamente el acoplamiento que se descartó al portar el toggle de tema del Tetris original (tabla de arriba, fila "Acoplamientos a limpiar").
+- **Cero colores hardcodeados en `update`/`draw`.** Cada `draw()` recibe la paleta por parámetro (`draw(ctx, palette)`), incluido el `fillRect` del fondo del canvas.
+- **`clasico` reproduce exactamente los colores originales del juego** — es el default y el fallback; nunca se "mejora".
+- **Glow por skin**: la paleta lleva un campo numérico (`glow`, en px de `shadowBlur`) — `0` en clásico (vector puro), alto en neón, bajo en retro. Siempre dentro de `ctx.save()`/`ctx.restore()` para no contaminar los draws siguientes.
+- **Retro es monocromático** (fósforo ámbar): una sola familia de tono, desaturada y cálida. Se diferencian las entidades por brillo, no por matiz.
+- **Contraste obligatorio** contra el `bg` del propio skin: ≥4.5:1 para texto/HUD, ≥3:1 para acentos y elementos grandes. El sitio es oscuro-only: no se agrega `prefers-color-scheme` ni modo claro.
+- **Spritesheets**: si el juego depende de arte con colores horneados, el skin se resuelve tintando en canvas (`globalCompositeOperation`), nunca generando un spritesheet nuevo por skin.
+- **Componente cliente**: prop opcional `skin?: SkinId` (default `DEFAULT_SKIN`); el skin del montaje se pasa vía un `skinRef` al crear el motor, y los cambios posteriores entran por un `useEffect([skin]) → engineRef.current?.setSkin(skin)`. El motor **no** se recrea al cambiar de skin.
+- **Wiring**: `GamePlayer` ya tiene `const [skin, setSkin] = useSkin()` (`lib/use-skin.ts`) y renderiza `<SkinPicker>`; alcanza con pasarle `skin={skin}` al canvas nuevo. La preferencia vive en `localStorage` + `<html data-skin="...">` — nada de esto toca Supabase.
+
 ## Contrato genérico: componente cliente (`components/games/<slug>-canvas.tsx`)
 
 ```tsx
@@ -66,16 +106,16 @@ Hoy existe un único punto de bifurcación: `const isAsteroids = game.id === "ro
 
 ## Comparación de los juegos ya relevados en `references/started-games/`
 
-| Aspecto | `02-asteroids` (ya portado en `rocas`) | `03-tetris` | `04-arkanoid` |
-|---|---|---|---|
-| Forma OOP | 5 clases (`Bullet`, `Asteroid`, `PowerUp`, `Ship`, `Particle`), cada una con `update(dt)`/`draw()` | Sin clases — objetos/arrays planos (`board`, `current`/`next`, `PIECES`, `COLORS`) | Sin clases — objetos planos (`paddle`, `ball`, `blocks[]`, `explosions[]`); datos de nivel en `levels.js` aparte |
-| `update`/`draw` | Separados, `dt` en segundos (cap 0.05) | Sin `update(dt)` propio — la gravedad está inline en el loop (`dropAccum` vs `dropInterval`, `dt` en ms) | Separados, `dt` en segundos (sin cap) |
-| Input | Teclado (`←` `→` `↑` `Espacio`) | Teclado (`←` `→` `↓` `↑`/`X` rotar, `Espacio` hard drop, `P` pausa) | Teclado (`←` `→`, `P`/`Escape`) **+ mouse** (`mousemove` mueve la paleta, `click` sobre botones dibujados en el propio canvas durante la pausa) |
-| Sonido | No | No | **Sí** — dos `Audio` reproducidos vía `.cloneNode().play()` en colisiones; requiere assets servidos desde `public/` y preload |
-| Canvas | 1 × 800×600 | **2** — tablero 300×600 + preview de siguiente pieza 120×120 | 1 × 800×600, con spritesheet PNG cargado async antes de arrancar el loop |
-| Concepto de "vidas" | Sí (3 vidas) | No — solo score/líneas/nivel | Sí |
-| Acoplamientos a limpiar al portar | — (ya resuelto en `asteroids-engine.ts`) | Botón de restart real (`#restart-btn`) compartido por pausa y game over; toggle de tema vía `localStorage` y `getComputedStyle(...).getPropertyValue('--grid-line')` — descartar, no son parte de la lógica del juego | Botones de "saltar a nivel" dibujados y clickeados dentro del propio canvas durante la pausa — candidatos a convertirse en controles React reales en vez de UI-en-canvas; rutas de assets (`assets/...`) deben pasar a `public/` |
-| Complejidad relativa | Base (línea de partida, ~420 líneas) | Más simple en entidades, pero dos canvases y sistema de rotación con wall-kick | Más compleja: carga de sprites async, archivo de niveles aparte, audio real, doble esquema de input, UI interactiva dentro del canvas |
+| Aspecto                           | `02-asteroids` (ya portado en `rocas`)                                                             | `03-tetris`                                                                                                                                                                                                           | `04-arkanoid`                                                                                                                                                                                                                    |
+| --------------------------------- | -------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Forma OOP                         | 5 clases (`Bullet`, `Asteroid`, `PowerUp`, `Ship`, `Particle`), cada una con `update(dt)`/`draw()` | Sin clases — objetos/arrays planos (`board`, `current`/`next`, `PIECES`, `COLORS`)                                                                                                                                    | Sin clases — objetos planos (`paddle`, `ball`, `blocks[]`, `explosions[]`); datos de nivel en `levels.js` aparte                                                                                                                 |
+| `update`/`draw`                   | Separados, `dt` en segundos (cap 0.05)                                                             | Sin `update(dt)` propio — la gravedad está inline en el loop (`dropAccum` vs `dropInterval`, `dt` en ms)                                                                                                              | Separados, `dt` en segundos (sin cap)                                                                                                                                                                                            |
+| Input                             | Teclado (`←` `→` `↑` `Espacio`)                                                                    | Teclado (`←` `→` `↓` `↑`/`X` rotar, `Espacio` hard drop, `P` pausa)                                                                                                                                                   | Teclado (`←` `→`, `P`/`Escape`) **+ mouse** (`mousemove` mueve la paleta, `click` sobre botones dibujados en el propio canvas durante la pausa)                                                                                  |
+| Sonido                            | No                                                                                                 | No                                                                                                                                                                                                                    | **Sí** — dos `Audio` reproducidos vía `.cloneNode().play()` en colisiones; requiere assets servidos desde `public/` y preload                                                                                                    |
+| Canvas                            | 1 × 800×600                                                                                        | **2** — tablero 300×600 + preview de siguiente pieza 120×120                                                                                                                                                          | 1 × 800×600, con spritesheet PNG cargado async antes de arrancar el loop                                                                                                                                                         |
+| Concepto de "vidas"               | Sí (3 vidas)                                                                                       | No — solo score/líneas/nivel                                                                                                                                                                                          | Sí                                                                                                                                                                                                                               |
+| Acoplamientos a limpiar al portar | — (ya resuelto en `asteroids-engine.ts`)                                                           | Botón de restart real (`#restart-btn`) compartido por pausa y game over; toggle de tema vía `localStorage` y `getComputedStyle(...).getPropertyValue('--grid-line')` — descartar, no son parte de la lógica del juego | Botones de "saltar a nivel" dibujados y clickeados dentro del propio canvas durante la pausa — candidatos a convertirse en controles React reales en vez de UI-en-canvas; rutas de assets (`assets/...`) deben pasar a `public/` |
+| Complejidad relativa              | Base (línea de partida, ~420 líneas)                                                               | Más simple en entidades, pero dos canvases y sistema de rotación con wall-kick                                                                                                                                        | Más compleja: carga de sprites async, archivo de niveles aparte, audio real, doble esquema de input, UI interactiva dentro del canvas                                                                                            |
 
 ## Si el juego es "desde cero" (sin carpeta de referencia)
 

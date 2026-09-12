@@ -6,6 +6,8 @@
 // HTMLCanvasElement/CanvasRenderingContext2D passed in by the caller (plus
 // the Image() element the precarga step creates internally).
 
+import { DEFAULT_SKIN, type SkinId } from "@/lib/games/skins";
+
 export type EngineState = "playing" | "dead" | "gameover";
 
 export interface SerpentinaEngineCallbacks {
@@ -20,6 +22,78 @@ export interface SerpentinaEngine {
   stop: () => void; // remueve listeners y cancela el rAF
   setPaused: (paused: boolean) => void;
   reset: () => void; // vuelve a state 'playing', score 0, lives 3, nivel 1
+  setSkin: (skin: SkinId) => void; // cambia la paleta en caliente, sin reiniciar
+}
+
+// ── Paleta ──────────────────────────────────────────────────────────────────
+// Inyectada explícitamente (nunca leída de `document`/`getComputedStyle`).
+// `clasico` reproduce exactamente los colores previos a los skins.
+export interface SerpentinaFruitStyle {
+  /** Tono al que se lleva el pixel-art vía composite "color"; null = arte original. */
+  tint: string | null;
+  /** Alpha (0-1) del pase de realce que levanta los píxeles oscuros; 0 = sin realce. */
+  lift: number;
+  /** Color del pase de realce (ignorado si `lift` es 0). */
+  liftColor: string;
+}
+
+export interface SerpentinaPalette {
+  bg: string;
+  /** Color de las líneas de la grilla (ya incluye su alpha). */
+  grid: string;
+  snakeHead: string;
+  snakeBody: string;
+  /** Canal RGB de las partículas en formato "r, g, b" (el alpha lo pone el motor). */
+  particleRgb: string;
+  fruit: SerpentinaFruitStyle;
+  /** Radio del glow en px; 0 = sin glow (clásico plano). */
+  glow: number;
+}
+
+// Contraste medido contra el `bg` de cada skin (WCAG, 2026-09-11):
+// clásico cabeza 15.7:1 / cuerpo 7.2:1 · neón cabeza 16.0:1 / cuerpo 9.4:1 ·
+// retro cabeza 12.4:1 / cuerpo 5.2:1 — todos ≥ 4.5:1.
+// Frutas (objeto gráfico grande, umbral 3:1), peor caso del spritesheet
+// (berenjena/uva oscuras): neón 3.4:1 · retro 4.3:1. En clásico ese peor caso
+// queda en 1.3:1, valor preexistente que no se toca (clásico = paleta de hoy).
+export const SERPENTINA_PALETTES: Record<SkinId, SerpentinaPalette> = {
+  clasico: {
+    bg: "#000",
+    grid: "rgba(255,255,255,0.04)",
+    snakeHead: "#39ff6a",
+    snakeBody: "#1fae46",
+    particleRgb: "57, 255, 106",
+    fruit: { tint: null, lift: 0, liftColor: "#ffffff" },
+    glow: 0,
+  },
+  neon: {
+    bg: "#04060e",
+    grid: "rgba(125,249,255,0.07)",
+    snakeHead: "#5effc1",
+    snakeBody: "#12c98e",
+    particleRgb: "94, 255, 193",
+    // El neón conserva el color original de las frutas: solo levanta las más
+    // oscuras (berenjena, uva) para que no se pierdan contra el fondo —
+    // 0.35 es el alpha mínimo que lleva ese peor caso por encima de 3:1.
+    fruit: { tint: null, lift: 0.35, liftColor: "#9ffcff" },
+    glow: 12,
+  },
+  retro: {
+    bg: "#0b0805",
+    grid: "rgba(255,176,0,0.06)",
+    snakeHead: "#ffc23d",
+    snakeBody: "#b4741a",
+    particleRgb: "255, 176, 0",
+    // Fósforo ámbar monocromático: el spritesheet se tiñe en canvas, nunca se
+    // reemplaza por arte nuevo. El realce sube las frutas oscuras a ≥3:1 sin
+    // apagar las claras (el amarillo queda en 12.5:1).
+    fruit: { tint: "#ffb000", lift: 0.45, liftColor: "#ffd98a" },
+    glow: 4,
+  },
+};
+
+export function resolveSerpentinaPalette(skin: SkinId): SerpentinaPalette {
+  return SERPENTINA_PALETTES[skin] ?? SERPENTINA_PALETTES[DEFAULT_SKIN];
 }
 
 const W = 800;
@@ -127,6 +201,7 @@ function preloadImage(src: string): Promise<HTMLImageElement> {
 export function createSerpentinaEngine(
   canvas: HTMLCanvasElement,
   callbacks: SerpentinaEngineCallbacks,
+  skin: SkinId = DEFAULT_SKIN,
 ): SerpentinaEngine {
   const maybeCtx = canvas.getContext("2d");
   if (!maybeCtx) {
@@ -139,6 +214,13 @@ export function createSerpentinaEngine(
 
   // ── Assets ────────────────────────────────────────────────────────────
   let image: HTMLImageElement | null = null;
+
+  // ── Skin ──────────────────────────────────────────────────────────────
+  let skinId: SkinId = skin;
+  let palette = resolveSerpentinaPalette(skinId);
+  // Tiles de fruta ya teñidos, cacheados por `${skin}|${fruta}` (a lo sumo
+  // 3 skins × 22 frutas). Evita rehacer el composite en cada frame.
+  const fruitTiles = new Map<string, HTMLCanvasElement>();
 
   // ── Input ─────────────────────────────────────────────────────────────
   function handleKeyDown(e: KeyboardEvent): void {
@@ -202,8 +284,7 @@ export function createSerpentinaEngine(
       x = randInt(0, COLS - 1);
       y = randInt(0, ROWS - 1);
     } while (isOnSnake(x, y));
-    const skin =
-      FRUIT_SKIN_NAMES[randInt(0, FRUIT_SKIN_NAMES.length - 1)];
+    const skin = FRUIT_SKIN_NAMES[randInt(0, FRUIT_SKIN_NAMES.length - 1)];
     fruit = { x, y, skin };
   }
 
@@ -282,7 +363,12 @@ export function createSerpentinaEngine(
     const head = snake[0];
     const newHead: Cell = { x: head.x + dir.x, y: head.y + dir.y };
 
-    if (newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS) {
+    if (
+      newHead.x < 0 ||
+      newHead.x >= COLS ||
+      newHead.y < 0 ||
+      newHead.y >= ROWS
+    ) {
       killSnake();
       return;
     }
@@ -292,7 +378,8 @@ export function createSerpentinaEngine(
     // doesn't count as a collision target in that case.
     const bodyToCheck = eating ? snake : snake.slice(0, -1);
     const hitsSelf =
-      invincible <= 0 && bodyToCheck.some((s) => s.x === newHead.x && s.y === newHead.y);
+      invincible <= 0 &&
+      bodyToCheck.some((s) => s.x === newHead.x && s.y === newHead.y);
     if (hitsSelf) {
       killSnake();
       return;
@@ -343,7 +430,7 @@ export function createSerpentinaEngine(
 
   // ── Draw ──────────────────────────────────────────────────────────────
   function drawGrid(): void {
-    ctx.strokeStyle = "rgba(255,255,255,0.04)";
+    ctx.strokeStyle = palette.grid;
     ctx.lineWidth = 1;
     for (let x = 0; x <= COLS; x++) {
       ctx.beginPath();
@@ -363,38 +450,94 @@ export function createSerpentinaEngine(
     if (state === "dead") return; // hidden while waiting to respawn
     if (invincible > 0 && Math.floor(invincible / 125) % 2 === 0) return; // blink
 
+    ctx.save();
+    if (palette.glow > 0) {
+      ctx.shadowBlur = palette.glow;
+      ctx.shadowColor = palette.snakeHead;
+    }
     snake.forEach((seg, i) => {
-      ctx.fillStyle = i === 0 ? "#39ff6a" : "#1fae46";
+      ctx.fillStyle = i === 0 ? palette.snakeHead : palette.snakeBody;
       ctx.fillRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2);
     });
+    ctx.restore();
+  }
+
+  /**
+   * Tile de fruta teñido para el skin activo. El pixel-art de `fruits.png`
+   * tiene los colores horneados: el skin se resuelve con composite en canvas
+   * (`color` conserva la luminancia del sprite y toma el tono del skin),
+   * nunca con un spritesheet nuevo. Devuelve `null` si el skin usa el arte
+   * original sin alterar (clásico).
+   */
+  function getFruitTile(name: FruitSkinName): HTMLCanvasElement | null {
+    const style = palette.fruit;
+    if (!image) return null;
+    if (!style.tint && style.lift <= 0) return null;
+
+    const key = `${skinId}|${name}`;
+    const cached = fruitTiles.get(key);
+    if (cached) return cached;
+
+    const sp = FRUIT_SKINS[name];
+    const tile = canvas.ownerDocument.createElement("canvas");
+    tile.width = sp.w;
+    tile.height = sp.h;
+    const tctx = tile.getContext("2d");
+    if (!tctx) return null;
+
+    tctx.drawImage(image, sp.x, sp.y, sp.w, sp.h, 0, 0, sp.w, sp.h);
+    if (style.tint) {
+      tctx.globalCompositeOperation = "color";
+      tctx.fillStyle = style.tint;
+      tctx.fillRect(0, 0, sp.w, sp.h);
+    }
+    if (style.lift > 0) {
+      // `source-atop` deja el realce solo sobre los píxeles opacos del sprite.
+      tctx.globalCompositeOperation = "source-atop";
+      tctx.globalAlpha = style.lift;
+      tctx.fillStyle = style.liftColor;
+      tctx.fillRect(0, 0, sp.w, sp.h);
+      tctx.globalAlpha = 1;
+    }
+    // El fill de `color` pinta también el fondo transparente: se restaura el
+    // alpha original recortando contra el sprite.
+    tctx.globalCompositeOperation = "destination-in";
+    tctx.drawImage(image, sp.x, sp.y, sp.w, sp.h, 0, 0, sp.w, sp.h);
+
+    fruitTiles.set(key, tile);
+    return tile;
   }
 
   function drawFruit(): void {
     if (!image) return;
     const sp = FRUIT_SKINS[fruit.skin];
-    ctx.drawImage(
-      image,
-      sp.x,
-      sp.y,
-      sp.w,
-      sp.h,
-      fruit.x * CELL,
-      fruit.y * CELL,
-      CELL,
-      CELL,
-    );
+    const dx = fruit.x * CELL;
+    const dy = fruit.y * CELL;
+    const tile = getFruitTile(fruit.skin);
+
+    ctx.save();
+    if (palette.glow > 0) {
+      ctx.shadowBlur = palette.glow;
+      ctx.shadowColor = palette.fruit.tint ?? palette.fruit.liftColor;
+    }
+    if (tile) {
+      ctx.drawImage(tile, 0, 0, sp.w, sp.h, dx, dy, CELL, CELL);
+    } else {
+      ctx.drawImage(image, sp.x, sp.y, sp.w, sp.h, dx, dy, CELL, CELL);
+    }
+    ctx.restore();
   }
 
   function drawParticles(): void {
     for (const p of particles) {
       const alpha = Math.max(0, p.ttl / p.life);
-      ctx.fillStyle = `rgba(57,255,106,${alpha.toFixed(2)})`;
+      ctx.fillStyle = `rgba(${palette.particleRgb},${alpha.toFixed(2)})`;
       ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
     }
   }
 
   function draw(): void {
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = palette.bg;
     ctx.fillRect(0, 0, W, H);
 
     if (!image) return; // asset gate: nothing to draw before precarga resolves
@@ -454,6 +597,10 @@ export function createSerpentinaEngine(
       initGame();
       reportChanges();
       lastTime = null;
+    },
+    setSkin(value: SkinId): void {
+      skinId = value;
+      palette = resolveSerpentinaPalette(value);
     },
   };
 }

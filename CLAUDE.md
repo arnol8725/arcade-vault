@@ -70,6 +70,7 @@ Para decidir **cuál** de esos slots llenar (o qué juego nuevo dar de alta), us
 - `/spec` y `/spec-impl` están instalados (`.agents/skills/spec`, `.agents/skills/spec-impl`; también enlazados en `~/.claude/skills`), basados en https://github.com/Klerith/fernando-skills.
 - `/nuevo-juego` (`.claude/skills/nuevo-juego/`) es un skill del proyecto: redacta el spec de un juego y luego implementa motor + canvas + wiring. Tiene `disable-model-invocation: true`, así que solo corre si el usuario lo invoca explícitamente.
 - El subagente `game-planner` (`.claude/agents/game-planner.md`) es el paso previo: analiza el catálogo y decide **qué** juego conviene implementar a continuación, evaluando candidatos contra una rúbrica de encaje. No escribe specs ni código — su única salida escrita es `references/game-suggestions-todo.md`, que además es su memoria: lo lee antes de proponer para no repetir sugerencias entre sesiones. Solo corre si el usuario lo invoca explícitamente. El handoff después de una recomendación es `/nuevo-juego <slug>`.
+- El subagente `skin-designer` (`.claude/agents/skin-designer.md`) audita y configura los skins visuales: garantiza que cada juego con motor real tenga al menos 3 skins (`neon`, `retro`, `clásico`/default) legibles sobre el fondo CRT oscuro del sitio (no hay modo claro). A diferencia de `game-planner`, sí escribe código — parametriza `lib/games/*-engine.ts` y sus `*-canvas.tsx`, sin tocar `games`/`scores` ni Supabase. Memoria en `references/skin-compliance.md`. Solo corre si el usuario lo invoca explícitamente.
 
 ## Convenciones
 

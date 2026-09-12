@@ -19,6 +19,62 @@
   --line-2: rgba(255, 255, 255, 0.06);
   --pixel: var(--font-pixel), system-ui, monospace;
   --mono: var(--font-mono), var(--font-mono-fallback), "Courier New", monospace;
+  /* Canales RGB de los acentos, para glows con alpha variable por skin. */
+  --cyan-rgb: 0 245 255;
+  --magenta-rgb: 255 0 110;
+  --yellow-rgb: 245 255 0;
+  --green-rgb: 0 255 136;
+  /* Multiplicador de glow del skin (1 = clásico). */
+  --glow-scale: 1;
+}
+
+/* ===== Skins =====
+   El sitio es oscuro-only: los skins NO son un modo claro, son tres paletas
+   distintas sobre el mismo fondo CRT oscuro. `clasico` es el default y vive
+   en `:root` tal cual estaba — acá solo se agregan variantes encima.
+   Selección: `data-skin` en <html>, escrito por `lib/use-skin.ts`.
+   Contraste medido (WCAG) contra el `--bg` de cada skin — ver
+   references/skin-compliance.md. */
+:root[data-skin="neon"] {
+  --bg: #05060f;
+  --bg-2: #0b0e1c;
+  --bg-3: #141a2e;
+  --ink: #f2f7ff; /* 18.8:1 */
+  --ink-dim: #9fb4d8; /* 9.6:1 */
+  --ink-faint: #5a6a92; /* 3.8:1 */
+  --cyan: #3dfcff; /* 15.9:1 */
+  --magenta: #ff3d9a; /* 6.1:1 */
+  --yellow: #fbff4d; /* 18.8:1 */
+  --green: #4dffa8; /* 15.6:1 */
+  --cyan-rgb: 61 252 255;
+  --magenta-rgb: 255 61 154;
+  --yellow-rgb: 251 255 77;
+  --green-rgb: 77 255 168;
+  --line: rgb(var(--cyan-rgb) / 0.28);
+  --glow-scale: 1.8;
+}
+
+:root[data-skin="retro"] {
+  /* Fósforo ámbar monocromático: una sola familia de tono, cálida y atenuada. */
+  --bg: #0b0805;
+  --bg-2: #120d08;
+  --bg-3: #1a120b;
+  --ink: #ffd9a3; /* 14.9:1 */
+  --ink-dim: #c08f4e; /* 6.9:1 */
+  --ink-faint: #7a5a30; /* 3.2:1 */
+  --cyan: #ffb000; /* 10.9:1 */
+  --magenta: #ff7a1a; /* 7.7:1 */
+  --yellow: #ffd21a; /* 13.8:1 */
+  --green: #e0a02a; /* 8.8:1 */
+  --gold: #ffc14d;
+  --silver: #d9b892;
+  --bronze: #c7752f;
+  --cyan-rgb: 255 176 0;
+  --magenta-rgb: 255 122 26;
+  --yellow-rgb: 255 210 26;
+  --green-rgb: 224 160 42;
+  --line: rgb(var(--cyan-rgb) / 0.2);
+  --glow-scale: 0.6;
 }
 
 /* Tailwind theme wiring — exposes the tokens above as utilities
@@ -428,6 +484,27 @@ a {
   box-shadow:
     0 0 14px rgba(245, 255, 0, 0.6),
     inset 0 0 8px rgba(245, 255, 0, 0.35);
+}
+/* `games.color` admite cyan/magenta/green/yellow — cyan es el estilo base de
+   `.btn`, pero se declara explícito para que `game-card` pueda pasar la clase
+   sin ramas, y green cierra el cuarto caso que faltaba. */
+.btn.cyan {
+  border-color: var(--cyan);
+}
+.btn.cyan:hover {
+  color: var(--cyan);
+  box-shadow:
+    0 0 14px rgb(var(--cyan-rgb) / 0.55),
+    inset 0 0 8px rgb(var(--cyan-rgb) / 0.35);
+}
+.btn.green {
+  border-color: var(--green);
+}
+.btn.green:hover {
+  color: var(--green);
+  box-shadow:
+    0 0 14px rgb(var(--green-rgb) / 0.55),
+    inset 0 0 8px rgb(var(--green-rgb) / 0.35);
 }
 .btn.ghost {
   border-color: var(--ink-faint);
@@ -3211,6 +3288,78 @@ a {
     opacity: 0;
     transform: translate(-50%, -60px) scale(1.2);
   }
+}
+
+/* ===== Skin picker (reproductor) =====
+   Vive en `.player-hud`, entre las estadísticas y los botones de acción.
+   Hereda la forma de `.gp-themer` (CSS decorativo preexistente) pero se
+   pinta con los tokens del skin activo, así el propio selector refleja el
+   skin elegido. */
+.skin-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.skin-picker .label {
+  font-family: var(--pixel);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--ink-dim);
+}
+.skin-picker .swatch {
+  --chip: var(--cyan-rgb);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border: 1px solid var(--line);
+  font-family: var(--pixel);
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  color: var(--ink-dim);
+  cursor: pointer;
+  transition:
+    color 140ms,
+    border-color 140ms,
+    box-shadow 140ms;
+  clip-path: polygon(
+    6px 0,
+    100% 0,
+    100% calc(100% - 6px),
+    calc(100% - 6px) 100%,
+    0 100%,
+    0 6px
+  );
+}
+.skin-picker .swatch .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: rgb(var(--chip));
+  box-shadow: 0 0 calc(6px * var(--glow-scale)) rgb(var(--chip) / 0.8);
+}
+.skin-picker .swatch.clasico {
+  --chip: var(--cyan-rgb);
+}
+.skin-picker .swatch.neon {
+  --chip: var(--magenta-rgb);
+}
+.skin-picker .swatch.retro {
+  --chip: var(--yellow-rgb);
+}
+.skin-picker .swatch:hover,
+.skin-picker .swatch:focus-visible {
+  color: var(--ink);
+  border-color: rgb(var(--chip) / 0.5);
+  outline: none;
+}
+.skin-picker .swatch.active {
+  color: rgb(var(--chip));
+  border-color: rgb(var(--chip));
+  box-shadow: 0 0 calc(10px * var(--glow-scale)) rgb(var(--chip) / 0.45);
 }
 
 /* Theme selector chip-row above gamepad */
