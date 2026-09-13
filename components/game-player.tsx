@@ -6,6 +6,7 @@ import { AsteroidsCanvas } from "@/components/games/asteroids-canvas";
 import { TetrisCanvas } from "@/components/games/tetris-canvas";
 import { ArkanoideCanvas } from "@/components/games/arkanoide-canvas";
 import { SerpentinaCanvas } from "@/components/games/serpentina-canvas";
+import { FroggerCanvas } from "@/components/games/frogger-canvas";
 import {
   TouchControls,
   type TouchButtonConfig,
@@ -50,12 +51,14 @@ export function GamePlayer({ game }: { game: Game }) {
   const isTetris = game.id === "bloque-buster";
   const isArkanoide = game.id === "arkanoide";
   const isSerpentina = game.id === "serpentina";
+  const isFrogger = game.id === "frogger";
   const [score, setScore] = useState(0);
   const [lives, setLives] = useState(3);
   const [asteroidsLevel, setAsteroidsLevel] = useState(1);
   const [tetrisLevel, setTetrisLevel] = useState(1);
   const [arkanoideLevel, setArkanoideLevel] = useState(1);
   const [serpentinaLevel, setSerpentinaLevel] = useState(1);
+  const [froggerLevel, setFroggerLevel] = useState(1);
   const [paused, setPaused] = useState(false);
   const [over, setOver] = useState(false);
   const [name, setName] = useState(user ? user.name : "INVITADO");
@@ -110,7 +113,16 @@ export function GamePlayer({ game }: { game: Game }) {
                 right: "ArrowRight",
               },
             }
-          : null;
+          : isFrogger
+            ? {
+                directions: {
+                  up: "ArrowUp",
+                  down: "ArrowDown",
+                  left: "ArrowLeft",
+                  right: "ArrowRight",
+                },
+              }
+            : null;
 
   // "rocas", "bloque-buster", "arkanoide" and "serpentina" get real
   // level/lives from their engines' callbacks. Every other game keeps the
@@ -125,7 +137,9 @@ export function GamePlayer({ game }: { game: Game }) {
         ? arkanoideLevel
         : isSerpentina
           ? serpentinaLevel
-          : Math.floor(score / 2500) + 1;
+          : isFrogger
+            ? froggerLevel
+            : Math.floor(score / 2500) + 1;
 
   useEffect(() => {
     if (
@@ -133,6 +147,7 @@ export function GamePlayer({ game }: { game: Game }) {
       isTetris ||
       isArkanoide ||
       isSerpentina ||
+      isFrogger ||
       over ||
       paused
     )
@@ -142,7 +157,15 @@ export function GamePlayer({ game }: { game: Game }) {
       220,
     );
     return () => clearInterval(t);
-  }, [isAsteroids, isTetris, isArkanoide, isSerpentina, over, paused]);
+  }, [
+    isAsteroids,
+    isTetris,
+    isArkanoide,
+    isSerpentina,
+    isFrogger,
+    over,
+    paused,
+  ]);
 
   const endGame = () => setOver(true);
   const restart = () => {
@@ -152,6 +175,7 @@ export function GamePlayer({ game }: { game: Game }) {
     setTetrisLevel(1);
     setArkanoideLevel(1);
     setSerpentinaLevel(1);
+    setFroggerLevel(1);
     setPaused(false);
     setOver(false);
     setSaved(false);
@@ -252,6 +276,18 @@ export function GamePlayer({ game }: { game: Game }) {
               onScoreChange={setScore}
               onLivesChange={setLives}
               onLevelChange={setSerpentinaLevel}
+              onGameOver={endGame}
+              onEngineReady={(engine) => {
+                engineRef.current = engine;
+              }}
+            />
+          ) : isFrogger ? (
+            <FroggerCanvas
+              key={resetKey}
+              paused={paused}
+              onScoreChange={setScore}
+              onLivesChange={setLives}
+              onLevelChange={setFroggerLevel}
               onGameOver={endGame}
               onEngineReady={(engine) => {
                 engineRef.current = engine;
