@@ -1,6 +1,6 @@
 # SPEC 11 — Controles táctiles para los 4 motores reales en dispositivos móviles
 
-> **Status:** Approved
+> **Status:** Implementado
 > **Depends on:** SPEC 05, SPEC 08, SPEC 09, SPEC 10
 > **Date:** 2026-09-12
 > **Objective:** Agregar un d-pad y botones de acción táctiles debajo del área de juego (fuera del canvas, sin taparlo) para que `rocas`, `bloque-buster`, `arkanoide` y `serpentina` sean jugables sin teclado en dispositivos con pantalla táctil.
