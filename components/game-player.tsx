@@ -6,7 +6,10 @@ import { AsteroidsCanvas } from "@/components/games/asteroids-canvas";
 import { TetrisCanvas } from "@/components/games/tetris-canvas";
 import { ArkanoideCanvas } from "@/components/games/arkanoide-canvas";
 import { SerpentinaCanvas } from "@/components/games/serpentina-canvas";
-import { TouchControls } from "@/components/games/touch-controls";
+import {
+  TouchControls,
+  type TouchButtonConfig,
+} from "@/components/games/touch-controls";
 import type { Game } from "@/lib/games";
 import { useUser } from "@/lib/user-context";
 import { saveScoreToLeaderboard } from "@/lib/scores";
@@ -37,7 +40,7 @@ interface TouchConfig {
     left?: string;
     right?: string;
   };
-  buttons?: { code: string; label: string }[];
+  buttons?: TouchButtonConfig[];
   repeat?: { intervalMs: number; codes: string[] };
 }
 
@@ -78,7 +81,7 @@ export function GamePlayer({ game }: { game: Game }) {
   const touchConfig: TouchConfig | null = isAsteroids
     ? {
         directions: { left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp" },
-        buttons: [{ code: "Space", label: "DISPARAR" }],
+        buttons: [{ code: "Space", label: "DISPARAR", variant: "magenta" }],
       }
     : isTetris
       ? {
@@ -88,8 +91,8 @@ export function GamePlayer({ game }: { game: Game }) {
             down: "ArrowDown",
           },
           buttons: [
-            { code: "ArrowUp", label: "ROTAR" },
-            { code: "Space", label: "CAER" },
+            { code: "ArrowUp", label: "ROTAR", variant: "cyan" },
+            { code: "Space", label: "CAER", variant: "magenta" },
           ],
           repeat: {
             intervalMs: 120,
