@@ -3722,17 +3722,63 @@ a {
   font-weight: 700;
 }
 
-/* ===== TOUCH CONTROLS (SPEC 11) ===== */
-/* Own strip below `.crt`, in normal flow — never overlaid on the canvas, so
-   the game area stays fully visible while playing. */
+/* ===== TOUCH CONTROLS (SPEC 11 layout/behavior + SPEC 12 gamepad style) =====
+   Own strip below `.crt`, in normal flow — never overlaid on the canvas, so
+   the game area stays fully visible while playing. Visual language mirrors
+   references/gamepad-assets/gamepad.html 1:1 (frame, d-pad glow, hub pulse,
+   action button gradients). */
 .touch-controls {
+  margin-top: 14px;
+}
+
+/* Console frame: bordered box with a soft gradient and a subtle dot texture,
+   same construction as `.gp` in the reference (base layer + two pseudo-
+   elements for the inner hairline and the dot grid). */
+.touch-controls__frame {
+  position: relative;
+  width: 100%;
+  padding: 12px 16px 10px;
+  background: linear-gradient(180deg, #1c1c28 0%, #0c0c14 100%);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  box-shadow:
+    0 20px 60px -30px rgba(0, 245, 255, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.6);
+}
+.touch-controls__frame::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid rgba(0, 245, 255, 0.14);
+  border-radius: 14px;
+  pointer-events: none;
+}
+.touch-controls__frame::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px
+  );
+  background-size: 8px 8px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+.touch-controls__body {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  margin-top: 14px;
+  position: relative;
+  z-index: 1;
 }
+
 .touch-dpad {
+  position: relative;
   display: grid;
   grid-template-columns: repeat(3, 44px);
   grid-template-rows: repeat(3, 44px);
@@ -3754,11 +3800,44 @@ a {
   grid-column: 2;
   grid-row: 3;
 }
+
+/* Decorative hub in the d-pad's free center cell — never a pointer target. */
+.touch-dpad__hub {
+  grid-column: 2;
+  grid-row: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 50% 50%, #181822 0%, #08080d 80%);
+  border: 1px solid rgba(0, 245, 255, 0.15);
+  border-radius: 6px;
+  box-shadow:
+    inset 0 0 12px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+.touch-dpad__hub-gem {
+  width: 12px;
+  height: 12px;
+  background: var(--cyan);
+  box-shadow:
+    0 0 10px var(--cyan),
+    inset 0 0 4px rgba(0, 0, 0, 0.5);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+  animation: touch-pulse-led 2s ease-in-out infinite;
+}
+@keyframes touch-pulse-led {
+  50% {
+    opacity: 0.35;
+    transform: scale(0.85);
+  }
+}
+
 .touch-actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
 .touch-button {
   min-width: 44px;
   min-height: 44px;
@@ -3768,27 +3847,131 @@ a {
   font-family: var(--pixel);
   font-size: 9px;
   letter-spacing: 0.08em;
-  color: var(--cyan);
-  background: rgba(0, 12, 18, 0.45);
-  border: 1px solid rgba(0, 245, 255, 0.5);
+  color: var(--ink-dim);
+  background: linear-gradient(180deg, #1a1a25, #0a0a12);
+  border: 1px solid rgba(255, 255, 255, 0.05);
   border-radius: 10px;
+  box-shadow:
+    0 4px 0 #050507,
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    inset 0 -2px 4px rgba(0, 0, 0, 0.6);
   -webkit-tap-highlight-color: transparent;
   user-select: none;
+  transition:
+    transform 80ms,
+    box-shadow 140ms,
+    color 140ms,
+    border-color 140ms;
+}
+.touch-dpad__arrow {
+  width: 22px;
+  height: 22px;
+  transition: filter 140ms;
 }
 .touch-button:active {
-  background: rgba(0, 245, 255, 0.25);
-  box-shadow: 0 0 12px rgba(0, 245, 255, 0.5);
+  transform: translateY(3px);
+  color: var(--cyan);
+  background: linear-gradient(180deg, #08161e, #030a0e);
+  border-color: var(--cyan);
+  box-shadow:
+    0 1px 0 #050507,
+    inset 0 0 16px rgba(0, 245, 255, 0.45),
+    0 0 16px rgba(0, 245, 255, 0.5);
 }
+.touch-button:active .touch-dpad__arrow {
+  filter: drop-shadow(0 0 6px var(--cyan)) drop-shadow(0 0 12px var(--cyan));
+}
+
 .touch-actions__button {
+  position: relative;
   width: 56px;
   height: 56px;
   min-width: 56px;
   min-height: 56px;
+  padding: 0 6px;
   border-radius: 50%;
-  color: var(--magenta);
-  border-color: rgba(255, 0, 110, 0.5);
+  border: 2px solid var(--touch-ab-color);
+  color: #fff;
+  font-size: 7px;
+  line-height: 1.3;
+  text-align: center;
+  text-shadow:
+    0 0 8px var(--touch-ab-color),
+    0 0 16px var(--touch-ab-color),
+    0 1px 0 rgba(0, 0, 0, 0.6);
+  box-shadow:
+    0 6px 0 #050507,
+    0 0 22px var(--touch-ab-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.4);
+}
+.touch-actions__button::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  border: 1px dashed var(--touch-ab-color);
+  opacity: 0;
+  transition:
+    opacity 140ms,
+    transform 200ms;
+}
+.touch-actions__button--cyan {
+  --touch-ab-color: var(--cyan);
+  --touch-ab-glow: rgba(0, 245, 255, 0.4);
+  background:
+    radial-gradient(
+      circle at 32% 26%,
+      rgba(255, 255, 255, 0.25),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 50% 55%,
+      rgba(0, 200, 230, 0.7),
+      rgba(0, 50, 70, 0.95) 75%
+    );
+}
+.touch-actions__button--magenta {
+  --touch-ab-color: var(--magenta);
+  --touch-ab-glow: rgba(255, 0, 110, 0.4);
+  background:
+    radial-gradient(
+      circle at 32% 26%,
+      rgba(255, 255, 255, 0.25),
+      transparent 50%
+    ),
+    radial-gradient(
+      circle at 50% 55%,
+      rgba(255, 0, 110, 0.7),
+      rgba(110, 0, 40, 0.95) 75%
+    );
 }
 .touch-actions__button:active {
-  background: rgba(255, 0, 110, 0.25);
-  box-shadow: 0 0 12px rgba(255, 0, 110, 0.5);
+  transform: translateY(4px) scale(0.97);
+  box-shadow:
+    0 1px 0 #050507,
+    0 0 36px var(--touch-ab-glow),
+    inset 0 0 18px rgba(0, 0, 0, 0.5);
+}
+.touch-actions__button:active::after {
+  opacity: 1;
+  transform: scale(1.08);
+}
+
+/* Mobile: shrink the frame/buttons in step with the reference's own
+   `@media (max-width: 620px)`, never dropping below the 44px floor. */
+@media (max-width: 620px) {
+  .touch-controls__frame {
+    padding: 10px 12px 8px;
+    border-radius: 14px;
+  }
+  .touch-controls__body {
+    gap: 10px;
+  }
+  .touch-actions__button {
+    width: 48px;
+    height: 48px;
+    min-width: 44px;
+    min-height: 44px;
+  }
 }

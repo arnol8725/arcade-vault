@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef } from "react";
 export interface TouchButtonConfig {
   code: string; // "Space" | "ArrowUp" | "KeyX" | ...
   label: string; // "DISPARAR" | "ROTAR" | "CAER"
+  variant: "cyan" | "magenta"; // action button color, set explicitly per game
 }
 
 export interface TouchControlsProps {
@@ -21,6 +22,14 @@ export interface TouchControlsProps {
 }
 
 const AUTO_REPEAT_MS_DEFAULT = 120;
+
+// Same triangle paths as references/gamepad-assets/gamepad.html's `.dp-arrow`.
+const DPAD_ARROW_PATHS: Record<"up" | "down" | "left" | "right", string> = {
+  up: "M12 4 L20 16 L4 16 Z",
+  right: "M8 4 L20 12 L8 20 Z",
+  down: "M4 8 L20 8 L12 20 Z",
+  left: "M16 4 L16 20 L4 12 Z",
+};
 
 /**
  * Touch d-pad + up to 2 action buttons, overlaid on `.crt-screen`.
@@ -124,38 +133,53 @@ export function TouchControls({
         onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerCancel}
       >
-        {label}
+        <svg
+          className="touch-dpad__arrow"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path d={DPAD_ARROW_PATHS[key]} fill="currentColor" />
+        </svg>
       </button>
     );
   };
 
   return (
     <div className="touch-controls">
-      <div className="touch-dpad">
-        {dpadButton("up", "▲")}
-        {dpadButton("left", "◀")}
-        {dpadButton("right", "▶")}
-        {dpadButton("down", "▼")}
-      </div>
-      {buttons.length > 0 && (
-        <div className="touch-actions">
-          {buttons.map((button) => (
-            <button
-              key={button.code}
-              type="button"
-              className="touch-button touch-actions__button"
-              style={{ touchAction: "none" }}
-              aria-label={button.label}
-              onPointerDown={handlePointerDown(button.code)}
-              onPointerUp={handlePointerUp}
-              onPointerLeave={handlePointerLeave}
-              onPointerCancel={handlePointerCancel}
-            >
-              {button.label}
-            </button>
-          ))}
+      <div className="touch-controls__frame">
+        <div className="touch-controls__body">
+          <div className="touch-dpad">
+            {dpadButton("up", "▲")}
+            {dpadButton("left", "◀")}
+            {dpadButton("right", "▶")}
+            {dpadButton("down", "▼")}
+            {/* Decorative only: centered via the d-pad's own 3x3 grid, never a
+                button and never a pointer target. */}
+            <div className="touch-dpad__hub" aria-hidden="true">
+              <span className="touch-dpad__hub-gem" />
+            </div>
+          </div>
+          {buttons.length > 0 && (
+            <div className="touch-actions">
+              {buttons.map((button) => (
+                <button
+                  key={button.code}
+                  type="button"
+                  className={`touch-button touch-actions__button touch-actions__button--${button.variant}`}
+                  style={{ touchAction: "none" }}
+                  aria-label={button.label}
+                  onPointerDown={handlePointerDown(button.code)}
+                  onPointerUp={handlePointerUp}
+                  onPointerLeave={handlePointerLeave}
+                  onPointerCancel={handlePointerCancel}
+                >
+                  {button.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 }
