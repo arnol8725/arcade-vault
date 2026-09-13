@@ -12,6 +12,7 @@ interface AsteroidsCanvasProps {
   onLivesChange: (lives: number) => void;
   onLevelChange: (level: number) => void;
   onGameOver: (finalScore: number) => void;
+  onEngineReady?: (engine: AsteroidsEngine) => void;
 }
 
 export function AsteroidsCanvas({
@@ -20,6 +21,7 @@ export function AsteroidsCanvas({
   onLivesChange,
   onLevelChange,
   onGameOver,
+  onEngineReady,
 }: AsteroidsCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<AsteroidsEngine | null>(null);
@@ -31,6 +33,7 @@ export function AsteroidsCanvas({
     onLivesChange,
     onLevelChange,
     onGameOver,
+    onEngineReady,
   });
   useEffect(() => {
     callbacksRef.current = {
@@ -38,6 +41,7 @@ export function AsteroidsCanvas({
       onLivesChange,
       onLevelChange,
       onGameOver,
+      onEngineReady,
     };
   });
 
@@ -52,6 +56,7 @@ export function AsteroidsCanvas({
       onGameOver: (finalScore) => callbacksRef.current.onGameOver(finalScore),
     });
     engineRef.current = engine;
+    callbacksRef.current.onEngineReady?.(engine);
     engine.start();
 
     return () => {

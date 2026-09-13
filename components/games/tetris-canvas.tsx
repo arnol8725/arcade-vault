@@ -11,6 +11,7 @@ interface TetrisCanvasProps {
   onScoreChange: (score: number) => void;
   onLevelChange: (level: number) => void;
   onGameOver: (finalScore: number) => void;
+  onEngineReady?: (engine: TetrisEngine) => void;
 }
 
 export function TetrisCanvas({
@@ -18,6 +19,7 @@ export function TetrisCanvas({
   onScoreChange,
   onLevelChange,
   onGameOver,
+  onEngineReady,
 }: TetrisCanvasProps) {
   const boardCanvasRef = useRef<HTMLCanvasElement>(null);
   const nextCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -25,9 +27,19 @@ export function TetrisCanvas({
 
   // The engine is created once per mount; keep the latest callback props in
   // a ref so it always calls the current ones without needing to be re-created.
-  const callbacksRef = useRef({ onScoreChange, onLevelChange, onGameOver });
+  const callbacksRef = useRef({
+    onScoreChange,
+    onLevelChange,
+    onGameOver,
+    onEngineReady,
+  });
   useEffect(() => {
-    callbacksRef.current = { onScoreChange, onLevelChange, onGameOver };
+    callbacksRef.current = {
+      onScoreChange,
+      onLevelChange,
+      onGameOver,
+      onEngineReady,
+    };
   });
 
   useEffect(() => {
@@ -41,6 +53,7 @@ export function TetrisCanvas({
       onGameOver: (finalScore) => callbacksRef.current.onGameOver(finalScore),
     });
     engineRef.current = engine;
+    callbacksRef.current.onEngineReady?.(engine);
     engine.start();
 
     return () => {

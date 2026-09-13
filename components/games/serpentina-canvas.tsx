@@ -12,6 +12,7 @@ interface SerpentinaCanvasProps {
   onLivesChange: (lives: number) => void;
   onLevelChange: (level: number) => void;
   onGameOver: (finalScore: number) => void;
+  onEngineReady?: (engine: SerpentinaEngine) => void;
 }
 
 export function SerpentinaCanvas({
@@ -20,6 +21,7 @@ export function SerpentinaCanvas({
   onLivesChange,
   onLevelChange,
   onGameOver,
+  onEngineReady,
 }: SerpentinaCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<SerpentinaEngine | null>(null);
@@ -31,6 +33,7 @@ export function SerpentinaCanvas({
     onLivesChange,
     onLevelChange,
     onGameOver,
+    onEngineReady,
   });
   useEffect(() => {
     callbacksRef.current = {
@@ -38,6 +41,7 @@ export function SerpentinaCanvas({
       onLivesChange,
       onLevelChange,
       onGameOver,
+      onEngineReady,
     };
   });
 
@@ -52,6 +56,7 @@ export function SerpentinaCanvas({
       onGameOver: (finalScore) => callbacksRef.current.onGameOver(finalScore),
     });
     engineRef.current = engine;
+    callbacksRef.current.onEngineReady?.(engine);
     engine.start();
 
     return () => {
