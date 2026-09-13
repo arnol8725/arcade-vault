@@ -1,6 +1,6 @@
 # SPEC 08 — Motor real de Tetris en el juego "BLOQUE BUSTER"
 
-> **Status:** Approved
+> **Status:** Implementado
 > **Depends on:** SPEC 05, SPEC 06
 > **Date:** 2026-09-07
 > **Objective:** Reemplazar la arena decorativa y el puntaje simulado de `GamePlayer` para el juego `bloque-buster` por el motor real de `references/started-games/03-tetris/game.js`, portado a un componente React/TypeScript con doble canvas (tablero + preview) que alimenta el HUD existente con datos reales.
@@ -127,11 +127,11 @@ El guardado de partida sigue usando la forma ya definida en SPEC 01/05, sin camb
 
 ## Riesgos
 
-| Riesgo                                                                                                          | Mitigación                                                                                                                                             |
-| ----------------------------------------------------------------------------------------------------------------| ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| El desajuste visual `cover-bricks`/`ARCADE` de `bloque-buster` vs. el contenido real (Tetris) puede confundir en `/biblioteca` y `/` | Aceptado explícitamente por el usuario en Fase 1; queda documentado como deuda para un spec futuro de corrección de catálogo |
-| El preview de siguiente pieza como overlay absoluto puede solaparse con el tablero en pantallas muy angostas donde `.crt-screen` se achica mucho | El preview es pequeño (120×120 escalado) y se ancla a una esquina fija; si se vuelve un problema real, ajustar tamaño/posición es un cambio aislado a `TetrisCanvas` |
-| Portar manualmente ~305 líneas de `game.js` puede introducir bugs sutiles en wall-kicks o en el timing de `dropAccum` vs `dt` | Los criterios de aceptación cubren explícitamente rotación con wall-kick, limpieza de líneas, curva de velocidad por nivel y pieza fantasma — los puntos más fáciles de romper en un port |
+| Riesgo                                                                                                                                           | Mitigación                                                                                                                                                                                |
+| ------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| El desajuste visual `cover-bricks`/`ARCADE` de `bloque-buster` vs. el contenido real (Tetris) puede confundir en `/biblioteca` y `/`             | Aceptado explícitamente por el usuario en Fase 1; queda documentado como deuda para un spec futuro de corrección de catálogo                                                              |
+| El preview de siguiente pieza como overlay absoluto puede solaparse con el tablero en pantallas muy angostas donde `.crt-screen` se achica mucho | El preview es pequeño (120×120 escalado) y se ancla a una esquina fija; si se vuelve un problema real, ajustar tamaño/posición es un cambio aislado a `TetrisCanvas`                      |
+| Portar manualmente ~305 líneas de `game.js` puede introducir bugs sutiles en wall-kicks o en el timing de `dropAccum` vs `dt`                    | Los criterios de aceptación cubren explícitamente rotación con wall-kick, limpieza de líneas, curva de velocidad por nivel y pieza fantasma — los puntos más fáciles de romper en un port |
 
 ---
 
