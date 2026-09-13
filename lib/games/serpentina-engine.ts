@@ -20,6 +20,7 @@ export interface SerpentinaEngine {
   stop: () => void; // remueve listeners y cancela el rAF
   setPaused: (paused: boolean) => void;
   reset: () => void; // vuelve a state 'playing', score 0, lives 3, nivel 1
+  setKeyState: (code: string, pressed: boolean) => void; // fuente de input por software (ej. touch controls); fija `nextDir` igual que el keydown nativo, solo en el flanco pressed=true
 }
 
 const W = 800;
@@ -202,8 +203,7 @@ export function createSerpentinaEngine(
       x = randInt(0, COLS - 1);
       y = randInt(0, ROWS - 1);
     } while (isOnSnake(x, y));
-    const skin =
-      FRUIT_SKIN_NAMES[randInt(0, FRUIT_SKIN_NAMES.length - 1)];
+    const skin = FRUIT_SKIN_NAMES[randInt(0, FRUIT_SKIN_NAMES.length - 1)];
     fruit = { x, y, skin };
   }
 
@@ -282,7 +282,12 @@ export function createSerpentinaEngine(
     const head = snake[0];
     const newHead: Cell = { x: head.x + dir.x, y: head.y + dir.y };
 
-    if (newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS) {
+    if (
+      newHead.x < 0 ||
+      newHead.x >= COLS ||
+      newHead.y < 0 ||
+      newHead.y >= ROWS
+    ) {
       killSnake();
       return;
     }
@@ -292,7 +297,8 @@ export function createSerpentinaEngine(
     // doesn't count as a collision target in that case.
     const bodyToCheck = eating ? snake : snake.slice(0, -1);
     const hitsSelf =
-      invincible <= 0 && bodyToCheck.some((s) => s.x === newHead.x && s.y === newHead.y);
+      invincible <= 0 &&
+      bodyToCheck.some((s) => s.x === newHead.x && s.y === newHead.y);
     if (hitsSelf) {
       killSnake();
       return;
@@ -454,6 +460,14 @@ export function createSerpentinaEngine(
       initGame();
       reportChanges();
       lastTime = null;
+    },
+    setKeyState(code: string, pressed: boolean): void {
+      if (!pressed) return; // direction is a state, not a repeated action — ignore release
+      const wanted = DIR_BY_CODE[code];
+      if (!wanted) return;
+      // Ignore a 180° reversal onto the current heading.
+      if (wanted.x === -dir.x && wanted.y === -dir.y) return;
+      nextDir = wanted;
     },
   };
 }

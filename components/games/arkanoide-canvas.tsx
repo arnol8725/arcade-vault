@@ -12,6 +12,7 @@ interface ArkanoideCanvasProps {
   onLivesChange: (lives: number) => void;
   onLevelChange: (level: number) => void;
   onGameOver: (finalScore: number) => void;
+  onEngineReady?: (engine: ArkanoideEngine) => void;
 }
 
 export function ArkanoideCanvas({
@@ -20,6 +21,7 @@ export function ArkanoideCanvas({
   onLivesChange,
   onLevelChange,
   onGameOver,
+  onEngineReady,
 }: ArkanoideCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<ArkanoideEngine | null>(null);
@@ -31,6 +33,7 @@ export function ArkanoideCanvas({
     onLivesChange,
     onLevelChange,
     onGameOver,
+    onEngineReady,
   });
   useEffect(() => {
     callbacksRef.current = {
@@ -38,6 +41,7 @@ export function ArkanoideCanvas({
       onLivesChange,
       onLevelChange,
       onGameOver,
+      onEngineReady,
     };
   });
 
@@ -52,6 +56,7 @@ export function ArkanoideCanvas({
       onGameOver: (finalScore) => callbacksRef.current.onGameOver(finalScore),
     });
     engineRef.current = engine;
+    callbacksRef.current.onEngineReady?.(engine);
     engine.start();
 
     return () => {

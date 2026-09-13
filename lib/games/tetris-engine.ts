@@ -23,6 +23,7 @@ export interface TetrisEngine {
   stop: () => void; // cancels the loop and removes key listeners
   setPaused: (paused: boolean) => void;
   reset: () => void; // back to state 'playing', empty board, score 0, level 1
+  setKeyState: (code: string, pressed: boolean) => void; // software input source (e.g. touch controls); this engine is edge-triggered with no native keyup, so pressed=true fires the action immediately and then auto-repeats it every AUTO_REPEAT_MS until pressed=false
 }
 
 const COLS = 10;
@@ -160,6 +161,20 @@ export function createTetrisEngine(
   let lastTime: number | null = null;
   let gameOverReported = false;
 
+  // Software auto-repeat (touch controls): this engine is edge-triggered and
+  // has no keyup listener, relying on native keyboard key-repeat instead. A
+  // software input source has no such repeat, so setKeyState below emulates
+  // it with one setInterval per held code.
+  const AUTO_REPEAT_MS = 120;
+  const repeatIntervals: Record<string, ReturnType<typeof setInterval>> = {};
+
+  function clearAllRepeatIntervals(): void {
+    for (const code of Object.keys(repeatIntervals)) {
+      clearInterval(repeatIntervals[code]);
+      delete repeatIntervals[code];
+    }
+  }
+
   // Sentinels so the first reportChanges() call after start()/reset() always
   // syncs the caller, even though the initial values match the defaults.
   let lastReportedScore = -1;
@@ -216,7 +231,9 @@ export function createTetrisEngine(
     for (let r = 0; r < current.shape.length; r++)
       for (let c = 0; c < current.shape[r].length; c++)
         if (current.shape[r][c])
-          board[current.y + r][current.x + c] = current.shape[r][c] as CellValue;
+          board[current.y + r][current.x + c] = current.shape[r][
+            c
+          ] as CellValue;
   }
 
   function clearLines(): void {
@@ -288,10 +305,12 @@ export function createTetrisEngine(
   }
 
   // ── Input ─────────────────────────────────────────────────────────────
-  function handleKeyDown(e: KeyboardEvent): void {
-    if (PREVENTABLE_CODES.has(e.code)) e.preventDefault();
+  // Shared by the native keydown listener and setKeyState below, so both
+  // input sources trigger the exact same move/rotate/drop rules exactly once
+  // per call — no duplicated game logic.
+  function performAction(code: string): void {
     if (paused || state === "gameover") return;
-    switch (e.code) {
+    switch (code) {
       case "ArrowLeft":
         if (!collide(current.shape, current.x - 1, current.y)) current.x--;
         break;
@@ -312,6 +331,11 @@ export function createTetrisEngine(
         return;
     }
     maybeReportGameOver();
+  }
+
+  function handleKeyDown(e: KeyboardEvent): void {
+    if (PREVENTABLE_CODES.has(e.code)) e.preventDefault();
+    performAction(e.code);
   }
 
   // ── Draw ──────────────────────────────────────────────────────────────
@@ -365,12 +389,25 @@ export function createTetrisEngine(
     for (let r = 0; r < current.shape.length; r++)
       for (let c = 0; c < current.shape[r].length; c++)
         if (current.shape[r][c])
-          drawBlock(ctx, current.x + c, gy + r, current.shape[r][c], BLOCK, 0.2);
+          drawBlock(
+            ctx,
+            current.x + c,
+            gy + r,
+            current.shape[r][c],
+            BLOCK,
+            0.2,
+          );
 
     // current piece
     for (let r = 0; r < current.shape.length; r++)
       for (let c = 0; c < current.shape[r].length; c++)
-        drawBlock(ctx, current.x + c, current.y + r, current.shape[r][c], BLOCK);
+        drawBlock(
+          ctx,
+          current.x + c,
+          current.y + r,
+          current.shape[r][c],
+          BLOCK,
+        );
   }
 
   function drawNext(): void {
@@ -440,14 +477,32 @@ export function createTetrisEngine(
         cancelAnimationFrame(rafId);
         rafId = null;
       }
+      clearAllRepeatIntervals();
     },
     setPaused(value: boolean): void {
       paused = value;
     },
     reset(): void {
+      clearAllRepeatIntervals();
       initGame();
       reportChanges();
       lastTime = null;
+    },
+    setKeyState(code: string, pressed: boolean): void {
+      if (pressed) {
+        if (repeatIntervals[code]) return; // already held down, repeat is running
+        performAction(code);
+        repeatIntervals[code] = setInterval(
+          () => performAction(code),
+          AUTO_REPEAT_MS,
+        );
+      } else {
+        const interval = repeatIntervals[code];
+        if (interval) {
+          clearInterval(interval);
+          delete repeatIntervals[code];
+        }
+      }
     },
   };
 }

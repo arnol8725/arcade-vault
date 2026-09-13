@@ -1,14 +1,45 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { AsteroidsCanvas } from "@/components/games/asteroids-canvas";
 import { TetrisCanvas } from "@/components/games/tetris-canvas";
 import { ArkanoideCanvas } from "@/components/games/arkanoide-canvas";
 import { SerpentinaCanvas } from "@/components/games/serpentina-canvas";
+import { TouchControls } from "@/components/games/touch-controls";
 import type { Game } from "@/lib/games";
 import { useUser } from "@/lib/user-context";
 import { saveScoreToLeaderboard } from "@/lib/scores";
+
+// Minimal shape shared by the 4 real engines' setKeyState — enough for
+// TouchControls to drive whichever engine is currently mounted, without
+// GamePlayer coupling to each engine's full interface.
+interface KeyStateSource {
+  setKeyState: (code: string, pressed: boolean) => void;
+}
+
+function subscribeToPointerType(onChange: () => void): () => void {
+  const mql = window.matchMedia("(pointer: coarse)");
+  mql.addEventListener("change", onChange);
+  return () => mql.removeEventListener("change", onChange);
+}
+function getIsTouchDevice(): boolean {
+  return window.matchMedia("(pointer: coarse)").matches;
+}
+function getIsTouchDeviceServerSnapshot(): boolean {
+  return false;
+}
+
+interface TouchConfig {
+  directions: {
+    up?: string;
+    down?: string;
+    left?: string;
+    right?: string;
+  };
+  buttons?: { code: string; label: string }[];
+  repeat?: { intervalMs: number; codes: string[] };
+}
 
 export function GamePlayer({ game }: { game: Game }) {
   const { user } = useUser();
@@ -27,6 +58,56 @@ export function GamePlayer({ game }: { game: Game }) {
   const [name, setName] = useState(user ? user.name : "INVITADO");
   const [saved, setSaved] = useState(false);
   const [resetKey, setResetKey] = useState(0);
+  const engineRef = useRef<KeyStateSource | null>(null);
+
+  // Touch controls only render on devices whose primary pointer is coarse
+  // (touchscreens) — a mouse/trackpad desktop keeps the current layout.
+  // `useSyncExternalStore` reads this browser-only media query without ever
+  // calling setState from inside an effect, and reports `false` for the SSR
+  // snapshot since `window` doesn't exist on the server.
+  const isTouchDevice = useSyncExternalStore(
+    subscribeToPointerType,
+    getIsTouchDevice,
+    getIsTouchDeviceServerSnapshot,
+  );
+
+  // Direction/button mapping per real engine, 1:1 with each engine's
+  // existing keyboard codes (see SPEC 11). `repeat` mirrors the native OS
+  // key-repeat that bloque-buster already relies on for its edge-triggered
+  // actions, so holding a touch d-pad/button behaves like holding a key.
+  const touchConfig: TouchConfig | null = isAsteroids
+    ? {
+        directions: { left: "ArrowLeft", right: "ArrowRight", up: "ArrowUp" },
+        buttons: [{ code: "Space", label: "DISPARAR" }],
+      }
+    : isTetris
+      ? {
+          directions: {
+            left: "ArrowLeft",
+            right: "ArrowRight",
+            down: "ArrowDown",
+          },
+          buttons: [
+            { code: "ArrowUp", label: "ROTAR" },
+            { code: "Space", label: "CAER" },
+          ],
+          repeat: {
+            intervalMs: 120,
+            codes: ["ArrowLeft", "ArrowRight", "ArrowDown", "ArrowUp", "Space"],
+          },
+        }
+      : isArkanoide
+        ? { directions: { left: "ArrowLeft", right: "ArrowRight" } }
+        : isSerpentina
+          ? {
+              directions: {
+                up: "ArrowUp",
+                down: "ArrowDown",
+                left: "ArrowLeft",
+                right: "ArrowRight",
+              },
+            }
+          : null;
 
   // "rocas", "bloque-buster", "arkanoide" and "serpentina" get real
   // level/lives from their engines' callbacks. Every other game keeps the
@@ -44,7 +125,14 @@ export function GamePlayer({ game }: { game: Game }) {
           : Math.floor(score / 2500) + 1;
 
   useEffect(() => {
-    if (isAsteroids || isTetris || isArkanoide || isSerpentina || over || paused)
+    if (
+      isAsteroids ||
+      isTetris ||
+      isArkanoide ||
+      isSerpentina ||
+      over ||
+      paused
+    )
       return;
     const t = setInterval(
       () => setScore((s) => s + Math.floor(10 + Math.random() * 90)),
@@ -127,6 +215,9 @@ export function GamePlayer({ game }: { game: Game }) {
               onLivesChange={setLives}
               onLevelChange={setAsteroidsLevel}
               onGameOver={endGame}
+              onEngineReady={(engine) => {
+                engineRef.current = engine;
+              }}
             />
           ) : isTetris ? (
             <TetrisCanvas
@@ -135,6 +226,9 @@ export function GamePlayer({ game }: { game: Game }) {
               onScoreChange={setScore}
               onLevelChange={setTetrisLevel}
               onGameOver={endGame}
+              onEngineReady={(engine) => {
+                engineRef.current = engine;
+              }}
             />
           ) : isArkanoide ? (
             <ArkanoideCanvas
@@ -144,6 +238,9 @@ export function GamePlayer({ game }: { game: Game }) {
               onLivesChange={setLives}
               onLevelChange={setArkanoideLevel}
               onGameOver={endGame}
+              onEngineReady={(engine) => {
+                engineRef.current = engine;
+              }}
             />
           ) : isSerpentina ? (
             <SerpentinaCanvas
@@ -153,6 +250,9 @@ export function GamePlayer({ game }: { game: Game }) {
               onLivesChange={setLives}
               onLevelChange={setSerpentinaLevel}
               onGameOver={endGame}
+              onEngineReady={(engine) => {
+                engineRef.current = engine;
+              }}
             />
           ) : (
             <div className="game-arena">
@@ -193,6 +293,17 @@ export function GamePlayer({ game }: { game: Game }) {
           <span>CARGA · 1MB</span>
         </div>
       </div>
+
+      {isTouchDevice && !over && touchConfig && (
+        <TouchControls
+          directions={touchConfig.directions}
+          buttons={touchConfig.buttons}
+          repeat={touchConfig.repeat}
+          onKey={(code, pressed) =>
+            engineRef.current?.setKeyState(code, pressed)
+          }
+        />
+      )}
 
       {over && (
         <div className="modal-bd">

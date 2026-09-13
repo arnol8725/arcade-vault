@@ -3721,3 +3721,74 @@ a {
   text-shadow: 0 0 6px rgba(255, 0, 110, 0.45);
   font-weight: 700;
 }
+
+/* ===== TOUCH CONTROLS (SPEC 11) ===== */
+/* Own strip below `.crt`, in normal flow — never overlaid on the canvas, so
+   the game area stays fully visible while playing. */
+.touch-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 14px;
+}
+.touch-dpad {
+  display: grid;
+  grid-template-columns: repeat(3, 44px);
+  grid-template-rows: repeat(3, 44px);
+  gap: 4px;
+}
+.touch-dpad__up {
+  grid-column: 2;
+  grid-row: 1;
+}
+.touch-dpad__left {
+  grid-column: 1;
+  grid-row: 2;
+}
+.touch-dpad__right {
+  grid-column: 3;
+  grid-row: 2;
+}
+.touch-dpad__down {
+  grid-column: 2;
+  grid-row: 3;
+}
+.touch-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.touch-button {
+  min-width: 44px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--pixel);
+  font-size: 9px;
+  letter-spacing: 0.08em;
+  color: var(--cyan);
+  background: rgba(0, 12, 18, 0.45);
+  border: 1px solid rgba(0, 245, 255, 0.5);
+  border-radius: 10px;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+.touch-button:active {
+  background: rgba(0, 245, 255, 0.25);
+  box-shadow: 0 0 12px rgba(0, 245, 255, 0.5);
+}
+.touch-actions__button {
+  width: 56px;
+  height: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  border-radius: 50%;
+  color: var(--magenta);
+  border-color: rgba(255, 0, 110, 0.5);
+}
+.touch-actions__button:active {
+  background: rgba(255, 0, 110, 0.25);
+  box-shadow: 0 0 12px rgba(255, 0, 110, 0.5);
+}

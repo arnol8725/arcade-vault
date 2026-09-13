@@ -17,6 +17,7 @@ export interface AsteroidsEngine {
   stop: () => void; // cancels the loop and removes key listeners
   setPaused: (paused: boolean) => void;
   reset: () => void; // back to state 'playing', score 0, lives 3, level 1
+  setKeyState: (code: string, pressed: boolean) => void; // software input source (e.g. touch controls); writes the same `keys`/`justPressed` state as the native keydown/keyup listeners
 }
 
 const W = 800;
@@ -641,6 +642,14 @@ export function createAsteroidsEngine(
       initGame();
       reportChanges();
       lastTime = null;
+    },
+    setKeyState(code: string, pressed: boolean): void {
+      if (pressed) {
+        if (!keys[code]) justPressed[code] = true;
+        keys[code] = true;
+      } else {
+        keys[code] = false;
+      }
     },
   };
 }

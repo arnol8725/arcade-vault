@@ -6,13 +6,7 @@
 // required by the asset-gating step of the spec).
 
 export type BlockColor =
-  | "red"
-  | "yellow"
-  | "cyan"
-  | "magenta"
-  | "hotpink"
-  | "green"
-  | "gray";
+  "red" | "yellow" | "cyan" | "magenta" | "hotpink" | "green" | "gray";
 export type EngineState = "playing" | "gameover"; // "win" del original colapsa en "gameover"
 
 export interface Block {
@@ -36,6 +30,7 @@ export interface ArkanoideEngine {
   stop: () => void; // remueve listeners y cancela el rAF
   setPaused: (paused: boolean) => void;
   reset: () => void; // vuelve a state 'playing', score 0, lives 3, nivel 1
+  setKeyState: (code: string, pressed: boolean) => void; // fuente de input por software (ej. touch controls); escribe el mismo objeto `keys` que los listeners nativos de keydown/keyup
 }
 
 const W = 800;
@@ -318,7 +313,14 @@ export function createArkanoideEngine(
 
   // ── Game state ────────────────────────────────────────────────────────
   const paddle: Paddle = { x: 0, y: 560, w: 81, h: 14 };
-  const ball: Ball = { x: 0, y: 0, w: 16, h: 16, vx: BASE_BALL_VX, vy: BASE_BALL_VY };
+  const ball: Ball = {
+    x: 0,
+    y: 0,
+    w: 16,
+    h: 16,
+    vx: BASE_BALL_VX,
+    vy: BASE_BALL_VY,
+  };
   let blocks: Block[] = [];
   let explosions: Explosion[] = [];
   let lives = 3;
@@ -470,7 +472,13 @@ export function createArkanoideEngine(
   }
 
   // ── Draw ──────────────────────────────────────────────────────────────
-  function drawSprite(sp: SpriteFrame, x: number, y: number, w: number, h: number): void {
+  function drawSprite(
+    sp: SpriteFrame,
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+  ): void {
     if (!image) return;
     ctx.drawImage(image, sp.sx, sp.sy, sp.sw, sp.sh, x, y, w, h);
   }
@@ -482,7 +490,14 @@ export function createArkanoideEngine(
     if (!image) return; // asset gate: nothing to draw before precarga resolves
 
     for (const block of blocks) {
-      if (block.alive) drawSprite(SPRITES.blocks[block.color], block.x, block.y, block.w, block.h);
+      if (block.alive)
+        drawSprite(
+          SPRITES.blocks[block.color],
+          block.x,
+          block.y,
+          block.w,
+          block.h,
+        );
     }
 
     for (const exp of explosions) {
@@ -490,7 +505,13 @@ export function createArkanoideEngine(
         Math.floor((exp.elapsed / EXPLOSION_DURATION) * 4),
         3,
       );
-      drawSprite(EXPLOSION_FRAMES[exp.color][frameIndex], exp.x, exp.y, exp.w, exp.h);
+      drawSprite(
+        EXPLOSION_FRAMES[exp.color][frameIndex],
+        exp.x,
+        exp.y,
+        exp.w,
+        exp.h,
+      );
     }
 
     drawSprite(SPRITES.paddle, paddle.x, paddle.y, paddle.w, paddle.h);
@@ -572,6 +593,11 @@ export function createArkanoideEngine(
       initGame();
       reportChanges();
       lastTime = null;
+    },
+    setKeyState(code: string, pressed: boolean): void {
+      if (code === "ArrowLeft" || code === "ArrowRight") {
+        keys[code] = pressed;
+      }
     },
   };
 }
