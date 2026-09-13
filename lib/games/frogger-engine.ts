@@ -210,6 +210,20 @@ interface Frog {
   targetRow: number;
 }
 
+// Clave de cache de sprites con glow: tipo de entidad + ancho en celdas +
+// color del glow. El color ya identifica al skin activo (cada skin define
+// sus propios colores en SKINS), así que no hace falta incluir el skin.
+type GlowSpriteKey = string; // `${entityKind}:${widthCells}:${color}`
+
+// Un sprite cacheado guarda el canvas offscreen ya renderizado con el glow,
+// más el offset para centrarlo respecto a la posición lógica (x, y) del
+// elemento, porque el halo del blur sobresale del bounding box original.
+interface CachedGlowSprite {
+  canvas: HTMLCanvasElement;
+  offsetX: number;
+  offsetY: number;
+}
+
 const DIR_BY_CODE: Record<string, Direction> = {
   ArrowUp: "up",
   ArrowDown: "down",
@@ -309,18 +323,83 @@ export function createFroggerEngine(
   // Paleta activa; re-sincronizada por setSkin() sin recrear el motor.
   let skin: FroggerSkin = SKINS[initialSkinKey] ?? SKINS.classic;
 
-  // Envuelve un draw() con shadowBlur/shadowColor cuando el skin activo pide
-  // glow (neon); en los demás skins ejecuta el draw sin efecto extra.
-  function withGlow(color: string, drawFn: () => void): void {
+  // Cache de sprites offscreen con el glow ya "horneado" (ver SPEC 13).
+  // Se reinicializa (Map nueva, vacía) cada vez que setSkin() cambia el skin
+  // activo; las entradas se generan de forma perezosa la primera vez que
+  // cada combinación (tipo + ancho + color) se necesita.
+  let glowSpriteCache: Map<GlowSpriteKey, CachedGlowSprite> = new Map();
+
+  // Margen alrededor del sprite cacheado para no recortar el halo del
+  // shadowBlur (radio 14) — generoso a propósito porque también tiene que
+  // cubrir formas centradas en el anchor lógico (círculo de turtle, elipse
+  // de frog), no solo el halo (ver Riesgos de SPEC 13).
+  const GLOW_SPRITE_PADDING = 32;
+
+  // Resuelve el sprite offscreen cacheado para `key`, creándolo (con el
+  // glow ya "horneado") la primera vez que se pide. `drawFn` dibuja la
+  // forma sobre el contexto que se le pase, tratando (localX, localY) como
+  // reemplazo local del anchor lógico (x, y) real del elemento — el mismo
+  // sprite sirve para cualquier posición futura porque solo depende del
+  // tipo/ancho/color, nunca de dónde está el elemento en pantalla.
+  function getOrCreateGlowSprite(
+    key: GlowSpriteKey,
+    widthPx: number,
+    heightPx: number,
+    color: string,
+    drawFn: (
+      targetCtx: CanvasRenderingContext2D,
+      localX: number,
+      localY: number,
+    ) => void,
+  ): CachedGlowSprite {
+    const existing = glowSpriteCache.get(key);
+    if (existing) return existing;
+
+    const padding = GLOW_SPRITE_PADDING;
+    const offscreen = document.createElement("canvas");
+    offscreen.width = widthPx + padding * 2;
+    offscreen.height = heightPx + padding * 2;
+    const offCtx = offscreen.getContext("2d");
+    if (offCtx) {
+      offCtx.save();
+      offCtx.shadowBlur = 14;
+      offCtx.shadowColor = color;
+      drawFn(offCtx, padding, padding);
+      offCtx.restore();
+    }
+
+    const sprite: CachedGlowSprite = {
+      canvas: offscreen,
+      offsetX: padding,
+      offsetY: padding,
+    };
+    glowSpriteCache.set(key, sprite);
+    return sprite;
+  }
+
+  // Envuelve un draw() con el glow del skin activo (neon) usando el sprite
+  // offscreen cacheado (ver SPEC 13) en vez de recalcular shadowBlur en
+  // cada frame; en los demás skins ejecuta el draw directo sin cache ni
+  // efecto extra, igual que antes.
+  function withGlow(
+    key: GlowSpriteKey,
+    x: number,
+    y: number,
+    widthPx: number,
+    heightPx: number,
+    color: string,
+    drawFn: (
+      targetCtx: CanvasRenderingContext2D,
+      localX: number,
+      localY: number,
+    ) => void,
+  ): void {
     if (!skin.glow) {
-      drawFn();
+      drawFn(ctx, x, y);
       return;
     }
-    ctx.save();
-    ctx.shadowBlur = 14;
-    ctx.shadowColor = color;
-    drawFn();
-    ctx.restore();
+    const sprite = getOrCreateGlowSprite(key, widthPx, heightPx, color, drawFn);
+    ctx.drawImage(sprite.canvas, x - sprite.offsetX, y - sprite.offsetY);
   }
 
   // Línea de luz de 4px al tope de un bloque sólido — solo skin retro.
@@ -597,18 +676,34 @@ export function createFroggerEngine(
       const width = GOAL_WIDTH * CELL;
       ctx.fillStyle = skin.goalPad.fill;
       ctx.fillRect(x + 2, y + 2, width - 4, CELL - 4);
-      withGlow(skin.goalPad.border, () => {
-        ctx.strokeStyle = skin.goalPad.border;
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x + 2, y + 2, width - 4, CELL - 4);
-      });
+      withGlow(
+        `goal-border:${GOAL_WIDTH}:${skin.goalPad.border}`,
+        x,
+        y,
+        width,
+        CELL,
+        skin.goalPad.border,
+        (c, lx, ly) => {
+          c.strokeStyle = skin.goalPad.border;
+          c.lineWidth = 2;
+          c.strokeRect(lx + 2, ly + 2, width - 4, CELL - 4);
+        },
+      );
       if (goalsFilled[idx]) {
-        withGlow(skin.goalPad.filled, () => {
-          ctx.fillStyle = skin.goalPad.filled;
-          ctx.beginPath();
-          ctx.ellipse(x + width / 2, y + CELL / 2, 12, 10, 0, 0, Math.PI * 2);
-          ctx.fill();
-        });
+        withGlow(
+          `goal-fill:${GOAL_WIDTH}:${skin.goalPad.filled}`,
+          x,
+          y,
+          width,
+          CELL,
+          skin.goalPad.filled,
+          (c, lx, ly) => {
+            c.fillStyle = skin.goalPad.filled;
+            c.beginPath();
+            c.ellipse(lx + width / 2, ly + CELL / 2, 12, 10, 0, 0, Math.PI * 2);
+            c.fill();
+          },
+        );
       }
     });
   }
@@ -619,15 +714,23 @@ export function createFroggerEngine(
     const w = entity.width * CELL;
     switch (entity.type) {
       case "car": {
-        withGlow(skin.car.body, () => {
-          ctx.fillStyle = skin.car.body;
-          ctx.fillRect(x + 2, y + 8, w - 4, CELL - 16);
-          if (skin.glow) {
-            ctx.strokeStyle = skin.car.body;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x + 2, y + 8, w - 4, CELL - 16);
-          }
-        });
+        withGlow(
+          `car:${entity.width}:${skin.car.body}`,
+          x,
+          y,
+          w,
+          CELL,
+          skin.car.body,
+          (c, lx, ly) => {
+            c.fillStyle = skin.car.body;
+            c.fillRect(lx + 2, ly + 8, w - 4, CELL - 16);
+            if (skin.glow) {
+              c.strokeStyle = skin.car.body;
+              c.lineWidth = 2;
+              c.strokeRect(lx + 2, ly + 8, w - 4, CELL - 16);
+            }
+          },
+        );
         topHighlight(x + 2, y + 8, w - 4);
         ctx.fillStyle = skin.car.wheel;
         ctx.beginPath();
@@ -637,25 +740,41 @@ export function createFroggerEngine(
         break;
       }
       case "truck": {
-        withGlow(skin.truck.body, () => {
-          ctx.fillStyle = skin.truck.body;
-          ctx.fillRect(x + 2, y + 6, w - 4, CELL - 12);
-          if (skin.glow) {
-            ctx.strokeStyle = skin.truck.body;
-            ctx.lineWidth = 2;
-            ctx.strokeRect(x + 2, y + 6, w - 4, CELL - 12);
-          }
-        });
+        withGlow(
+          `truck:${entity.width}:${skin.truck.body}`,
+          x,
+          y,
+          w,
+          CELL,
+          skin.truck.body,
+          (c, lx, ly) => {
+            c.fillStyle = skin.truck.body;
+            c.fillRect(lx + 2, ly + 6, w - 4, CELL - 12);
+            if (skin.glow) {
+              c.strokeStyle = skin.truck.body;
+              c.lineWidth = 2;
+              c.strokeRect(lx + 2, ly + 6, w - 4, CELL - 12);
+            }
+          },
+        );
         topHighlight(x + 2, y + 6, w - 4);
         ctx.fillStyle = skin.truck.cab;
         ctx.fillRect(x + 2, y + 6, CELL * 0.6, CELL - 12);
         break;
       }
       case "log": {
-        withGlow(skin.log.body, () => {
-          ctx.fillStyle = skin.log.body;
-          ctx.fillRect(x + 2, y + 6, w - 4, CELL - 12);
-        });
+        withGlow(
+          `log:${entity.width}:${skin.log.body}`,
+          x,
+          y,
+          w,
+          CELL,
+          skin.log.body,
+          (c, lx, ly) => {
+            c.fillStyle = skin.log.body;
+            c.fillRect(lx + 2, ly + 6, w - 4, CELL - 12);
+          },
+        );
         topHighlight(x + 2, y + 6, w - 4);
         ctx.strokeStyle = skin.log.grain;
         ctx.lineWidth = 1;
@@ -678,12 +797,20 @@ export function createFroggerEngine(
             ctx.arc(cx, cy, 14, 0, Math.PI * 2);
             ctx.stroke();
           } else {
-            withGlow(skin.turtle.visible, () => {
-              ctx.fillStyle = skin.turtle.visible;
-              ctx.beginPath();
-              ctx.arc(cx, cy, 14, 0, Math.PI * 2);
-              ctx.fill();
-            });
+            withGlow(
+              `turtle:1:${skin.turtle.visible}`,
+              cx,
+              cy,
+              28,
+              28,
+              skin.turtle.visible,
+              (c, lx, ly) => {
+                c.fillStyle = skin.turtle.visible;
+                c.beginPath();
+                c.arc(lx, ly, 14, 0, Math.PI * 2);
+                c.fill();
+              },
+            );
             ctx.strokeStyle = skin.turtle.visibleRing;
             ctx.lineWidth = 1;
             ctx.beginPath();
@@ -713,12 +840,20 @@ export function createFroggerEngine(
       ? -Math.sin((frog.animT / JUMP_MS) * Math.PI) * 6
       : 0;
 
-    withGlow(skin.frog.body, () => {
-      ctx.fillStyle = skin.frog.body;
-      ctx.beginPath();
-      ctx.ellipse(x, y + jumpLift, 14, 12, 0, 0, Math.PI * 2);
-      ctx.fill();
-    });
+    withGlow(
+      `frog:1:${skin.frog.body}`,
+      x,
+      y + jumpLift,
+      28,
+      24,
+      skin.frog.body,
+      (c, lx, ly) => {
+        c.fillStyle = skin.frog.body;
+        c.beginPath();
+        c.ellipse(lx, ly, 14, 12, 0, 0, Math.PI * 2);
+        c.fill();
+      },
+    );
 
     ctx.fillStyle = skin.frog.eyeWhite;
     ctx.beginPath();
@@ -832,6 +967,9 @@ export function createFroggerEngine(
     },
     setSkin(skinKey: FroggerSkinKey): void {
       skin = SKINS[skinKey] ?? SKINS.classic;
+      // Los sprites cacheados tienen el color del skin anterior "horneado" —
+      // se descartan y se reconstruyen perezosamente con la paleta nueva.
+      glowSpriteCache = new Map();
     },
   };
 }
