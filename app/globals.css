@@ -302,6 +302,43 @@ a {
 .av-nav .auth-btn {
   margin-left: 16px;
 }
+.av-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  object-fit: cover;
+  border: 1px solid var(--ink-faint);
+}
+.av-avatar-initials {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--pixel);
+  font-size: 8px;
+  letter-spacing: 0;
+  color: var(--bg);
+}
+.av-avatar-initials.cyan {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  box-shadow: 0 0 6px rgba(0, 245, 255, 0.6);
+}
+.av-avatar-initials.magenta {
+  background: var(--magenta);
+  border-color: var(--magenta);
+  box-shadow: 0 0 6px rgba(255, 0, 110, 0.6);
+}
+.av-avatar-initials.green {
+  background: var(--green);
+  border-color: var(--green);
+  box-shadow: 0 0 6px rgba(0, 255, 136, 0.6);
+}
+.av-avatar-initials.yellow {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  box-shadow: 0 0 6px rgba(245, 255, 0, 0.6);
+}
 .av-nav .hamburger {
   display: none;
 }

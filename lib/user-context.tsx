@@ -11,6 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 
 export interface SessionUser {
   name: string;
+  avatarUrl?: string;
 }
 
 export type AuthResult = { ok: true } | { ok: false; error: string };
@@ -56,6 +57,20 @@ function resolveRawName(authUser: {
   return authUser.email?.split("@")[0] ?? "";
 }
 
+// Google puts the photo in `avatar_url` (Supabase-normalized) or `picture`
+// (raw provider field); GitHub always uses `avatar_url`. Email/password
+// signup has neither, so this is undefined for that path.
+function resolveAvatarUrl(authUser: {
+  user_metadata?: Record<string, unknown>;
+}): string | undefined {
+  const metadata = authUser.user_metadata ?? {};
+  return (
+    (metadata.avatar_url as string | undefined) ||
+    (metadata.picture as string | undefined) ||
+    undefined
+  );
+}
+
 function readGuestFlag(): boolean {
   try {
     return localStorage.getItem(GUEST_KEY) === "1";
@@ -90,7 +105,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
         data: { session },
       } = await supabase.auth.getSession();
       if (!cancelled && session?.user) {
-        setUser({ name: normalizeName(resolveRawName(session.user)) });
+        setUser({
+          name: normalizeName(resolveRawName(session.user)),
+          avatarUrl: resolveAvatarUrl(session.user),
+        });
       }
     }
     hydrate();
@@ -99,7 +117,10 @@ export function UserProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser({ name: normalizeName(resolveRawName(session.user)) });
+        setUser({
+          name: normalizeName(resolveRawName(session.user)),
+          avatarUrl: resolveAvatarUrl(session.user),
+        });
       } else if (!readGuestFlag()) {
         setUser(null);
       }
