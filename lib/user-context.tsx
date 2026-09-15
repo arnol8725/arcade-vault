@@ -39,6 +39,23 @@ function normalizeName(name: string): string {
   return (name || "PLAYER1").toUpperCase().slice(0, 10);
 }
 
+// Email/password signup stores the username in `user_metadata.name`. OAuth
+// providers don't have that field: Google sends `full_name`, GitHub sends
+// `user_name`. If none of those are present, fall back to the email prefix,
+// which Supabase always provides.
+function resolveRawName(authUser: {
+  user_metadata?: Record<string, unknown>;
+  email?: string | null;
+}): string {
+  const metadata = authUser.user_metadata ?? {};
+  const fromMetadata =
+    (metadata.name as string | undefined) ||
+    (metadata.full_name as string | undefined) ||
+    (metadata.user_name as string | undefined);
+  if (fromMetadata) return fromMetadata;
+  return authUser.email?.split("@")[0] ?? "";
+}
+
 function readGuestFlag(): boolean {
   try {
     return localStorage.getItem(GUEST_KEY) === "1";
@@ -66,7 +83,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
 
     async function hydrate() {
       if (readGuestFlag()) {
-         
         setUser({ name: "INVITADO" });
         return;
       }
@@ -74,8 +90,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         data: { session },
       } = await supabase.auth.getSession();
       if (!cancelled && session?.user) {
-         
-        setUser({ name: normalizeName(session.user.user_metadata?.name) });
+        setUser({ name: normalizeName(resolveRawName(session.user)) });
       }
     }
     hydrate();
@@ -84,7 +99,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
-        setUser({ name: normalizeName(session.user.user_metadata?.name) });
+        setUser({ name: normalizeName(resolveRawName(session.user)) });
       } else if (!readGuestFlag()) {
         setUser(null);
       }

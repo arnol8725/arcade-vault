@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/lib/user-context";
+import { createClient } from "@/lib/supabase/client";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MIN_PASSWORD_LENGTH = 6;
@@ -17,6 +18,16 @@ export default function AuthPage() {
   const [shake, setShake] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    function readOauthError() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("error") === "oauth") {
+        setError("No se pudo completar el inicio de sesión. Intentá de nuevo.");
+      }
+    }
+    readOauthError();
+  }, []);
 
   const invalid = () => {
     if (!EMAIL_REGEX.test(email.trim())) return true;
@@ -53,6 +64,16 @@ export default function AuthPage() {
   const playAsGuest = () => {
     guest();
     router.push("/biblioteca");
+  };
+
+  const socialLogin = async (provider: "google" | "github") => {
+    setError(null);
+    const supabase = createClient();
+    const { error: oauthError } = await supabase.auth.signInWithOAuth({
+      provider,
+      options: { redirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (oauthError) setError(oauthError.message);
   };
 
   return (
@@ -148,10 +169,18 @@ export default function AuthPage() {
 
         <div className="auth-divider">O CONTINÚA CON</div>
         <div className="social">
-          <button className="btn ghost" type="button">
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => socialLogin("google")}
+          >
             ◆ GOOGLE
           </button>
-          <button className="btn ghost" type="button">
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={() => socialLogin("github")}
+          >
             ▣ GITHUB
           </button>
         </div>
