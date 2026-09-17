@@ -1,6 +1,6 @@
 # SPEC 17 — Regresión en password security del flujo de auth
 
-> **Status:** Approved
+> **Status:** Implemented
 > **Depends on:** SPEC 04, SPEC 15 (login-social-google-github), SPEC 16
 > **Date:** 2026-09-16
 > **Objective:** Corregir una regresión detectada en auditoría de seguridad enfocada en autenticación: el advisor `auth_leaked_password_protection` que SPEC 16 dejó documentado como resuelto vuelve a aparecer en WARN, y el largo mínimo de contraseña validado en el cliente (`app/auth/page.tsx`) no coincide con el mínimo de 8 caracteres que SPEC 16 fijó como criterio de aceptación.
