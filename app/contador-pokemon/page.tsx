@@ -5,13 +5,17 @@ import Image from "next/image";
 
 const TOTAL_POKEMON = 1025;
 
-function spriteUrl(pokedexId: number) {
+function spriteUrl(pokedexId: number): string {
   return `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/${pokedexId}.png`;
 }
 
 export default function ContadorPokemon() {
   const [count, setCount] = useState(1);
   const pokedexId = ((count - 1) % TOTAL_POKEMON) + 1;
+
+  function increment(): void {
+    setCount((current) => current + 1);
+  }
 
   return (
     <div className="pokemon-counter fade-in">
@@ -21,7 +25,7 @@ export default function ContadorPokemon() {
       <button
         type="button"
         className="pokemon-counter-frame"
-        onClick={() => setCount((c) => c + 1)}
+        onClick={increment}
         aria-label="Sumar uno al contador"
       >
         <Image
@@ -40,11 +44,7 @@ export default function ContadorPokemon() {
 
       <div className="pokemon-counter-value pixel neon-magenta">{count}</div>
 
-      <button
-        type="button"
-        className="btn xl"
-        onClick={() => setCount((c) => c + 1)}
-      >
+      <button type="button" className="btn xl" onClick={increment}>
         CLIC PARA SUMAR
       </button>
     </div>

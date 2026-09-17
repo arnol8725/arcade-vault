@@ -6,7 +6,7 @@ import { useUser } from "@/lib/user-context";
 import { createClient } from "@/lib/supabase/client";
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 6;
+const MIN_PASSWORD_LENGTH = 8;
 
 export default function AuthPage() {
   const router = useRouter();
